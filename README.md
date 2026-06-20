@@ -1,0 +1,78 @@
+# yassergombra - Terminal CV
+
+An interactive Terminal CV CLI for Yasser Gombra built using Ink, React, TypeScript, and the OpenRouter API.
+
+## Features
+
+- **AI Chat Agent**: Streaming responses answering details about Yasser Gombra using the auto-routing free model (`openrouter/free` via OpenRouter).
+- **Dynamic Views**:
+  - **[P] Projects**: Project cards with details, GitHub links, and tech stacks.
+  - **[S] Skills**: Grouped skills categorized by domain.
+  - **[E] Experience**: Detailed timeline of professional and academic experience.
+  - **[C] Contact**: Direct communication options.
+  - **[H] Help**: Instruction panel.
+- **Slash Commands**: Run `/projects`, `/skills`, `/experience`, `/contact`, `/help`, or `/clear` inside the chat.
+- **Responsive Layout**: Adjusts UI component boundaries automatically to terminal size.
+
+## Setup
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/YasserYG8/MySeve-CLI.git
+   cd MySeve-CLI
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Configure API Key**:
+   Create a `.env` file from the template and fill in your OpenRouter API Key:
+   ```bash
+   cp .env.example .env
+   ```
+   Add your key:
+   ```env
+   OPENROUTER_API_KEY=your-openrouter-api-key
+   ```
+
+4. **Build the CLI**:
+   ```bash
+   npm run build
+   ```
+
+5. **Run the CLI**:
+   ```bash
+   npm start
+   ```
+
+## Local Development
+
+To run with auto-compiling:
+```bash
+npm run dev
+```
+And in another terminal window, run:
+```bash
+npm start
+```
+
+## How to Publish
+
+1. Ensure the code compiles successfully:
+   ```bash
+   npm run build
+   ```
+2. Login to your NPM account:
+   ```bash
+   npm login
+   ```
+3. Publish to npm:
+   ```bash
+   npm publish
+   ```
+4. Now anyone can run your CV by executing:
+   ```bash
+   npx yassergombra
+   ```

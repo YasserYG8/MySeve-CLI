@@ -1,0 +1,137 @@
+import { useState, useCallback } from 'react';
+import OpenAI from 'openai';
+import { SYSTEM_PROMPT } from '../constants/prompts.js';
+
+export interface ChatMessage {
+  sender: 'user' | 'assistant';
+  text: string;
+}
+
+export const useChat = (onViewChange: (view: string) => void) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const sendMessage = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    // Handle slash commands
+    if (trimmed.startsWith('/')) {
+      const command = trimmed.toLowerCase();
+      if (command === '/clear') {
+        setMessages([]);
+        return;
+      }
+      if (command === '/projects') {
+        onViewChange('projects');
+        return;
+      }
+      if (command === '/skills') {
+        onViewChange('skills');
+        return;
+      }
+      if (command === '/experience') {
+        onViewChange('experience');
+        return;
+      }
+      if (command === '/contact') {
+        onViewChange('contact');
+        return;
+      }
+      if (command === '/help') {
+        onViewChange('help');
+        return;
+      }
+      
+      // Unknown command
+      setMessages(prev => [
+        ...prev,
+        { sender: 'user', text: trimmed },
+        { sender: 'assistant', text: `Unknown command: ${trimmed}. Type /help for all available commands.` }
+      ]);
+      return;
+    }
+
+    const apiKey = process.env['OPENROUTER_API_KEY'];
+    if (!apiKey) {
+      setError('OPENROUTER_API_KEY is not defined in your environment/dotenv file.');
+      return;
+    }
+
+    // Add user message
+    const userMsg: ChatMessage = { sender: 'user', text: trimmed };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsLoading(true);
+    setError(null);
+
+    // Prepare message history with system prompt, filtering out empty entries
+    const apiMessages = [
+      { role: 'system' as const, content: SYSTEM_PROMPT },
+      ...[...messages, userMsg]
+        .filter(m => m.text && m.text.trim() !== '')
+        .map(m => ({
+          role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+          content: m.text,
+        }))
+    ];
+
+    // Add empty assistant response to stream into
+    setMessages((prev) => [...prev, { sender: 'assistant', text: '' }]);
+
+    try {
+      const openai = new OpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: apiKey,
+        defaultHeaders: {
+          'HTTP-Referer': 'https://github.com/YasserYG8/MySeve-CLI',
+          'X-Title': 'Yasser Gombra Terminal CV',
+        }
+      });
+
+      const stream = await openai.chat.completions.create({
+        model: 'openrouter/free',
+        messages: apiMessages,
+        stream: true,
+      });
+
+      let accumulatedText = '';
+      for await (const chunk of stream) {
+        const text = chunk.choices[0]?.delta?.content || '';
+        if (text) {
+          accumulatedText += text;
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last && last.sender === 'assistant') {
+              last.text = accumulatedText;
+            }
+            return next;
+          });
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to stream response from AI');
+      // Update last message with error info
+      setMessages((prev) => {
+        const next = [...prev];
+        const last = next[next.length - 1];
+        if (last && last.sender === 'assistant' && last.text === '') {
+          last.text = `Error: ${err?.message || 'Failed to fetch response.'}`;
+        }
+        return next;
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages, onViewChange]);
+
+  return {
+    messages,
+    isLoading,
+    error,
+    sendMessage,
+    clearChat: () => setMessages([]),
+  };
+};
+export default useChat;
