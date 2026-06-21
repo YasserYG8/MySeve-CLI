@@ -10,6 +10,7 @@ interface ChatProps {
   isLoading: boolean;
   error: string | null;
   onSendMessage: (text: string) => void;
+  onInterrupt: () => void;
 }
 
 const COMMANDS = [
@@ -60,10 +61,12 @@ export const Chat: React.FC<ChatProps> = ({
   isLoading,
   error,
   onSendMessage,
+  onInterrupt,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const { columns, rows } = useStdoutDimensions();
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
 
   const typedCommand = inputValue.toLowerCase().trim();
   const filteredCommands = COMMANDS.filter(cmd => 
@@ -71,9 +74,34 @@ export const Chat: React.FC<ChatProps> = ({
   );
   const showCommands = inputValue.startsWith('/') && filteredCommands.length > 0;
 
+  // Keep selectedCommandIndex in bounds when input changes
+  useEffect(() => {
+    setSelectedCommandIndex(0);
+  }, [inputValue]);
+
   const handleSubmit = (value: string) => {
-    if (value.trim() && !isLoading) {
-      onSendMessage(value);
+    let textToSubmit = value.trim();
+
+    // Auto-complete commands on Enter submission
+    if (textToSubmit.startsWith('/')) {
+      const typed = textToSubmit.toLowerCase();
+      const matches = COMMANDS.filter(cmd => cmd.name.startsWith(typed));
+      
+      if (matches.length === 1) {
+        // If there is exactly one matching command (e.g. /p -> /projects), auto-complete and run it
+        textToSubmit = matches[0].name;
+      } else if (matches.length > 1) {
+        // If there are multiple matches, submit the currently highlighted index
+        if (selectedCommandIndex >= 0 && selectedCommandIndex < matches.length) {
+          textToSubmit = matches[selectedCommandIndex].name;
+        } else {
+          textToSubmit = matches[0].name;
+        }
+      }
+    }
+
+    if (textToSubmit && !isLoading) {
+      onSendMessage(textToSubmit);
       setInputValue('');
     }
   };
@@ -106,7 +134,7 @@ export const Chat: React.FC<ChatProps> = ({
 
   // Calculate height budget
   let menuHeight = showCommands ? filteredCommands.length + 2 : 0;
-  let nonChatHeight = 8 + 2 + 2 + 1 + 1 + 2 + menuHeight + 2; // header + margins + padding + prompt + help tips + tips + menu + safety
+  let nonChatHeight = 8 + 2 + 2 + 1 + 1 + 2 + menuHeight + 2 + 2; // header + margins + padding + prompt + help tips + tips + menu + safety + terminal safety margin
   if (isLoading) nonChatHeight += 1;
   if (error) nonChatHeight += 1;
   
@@ -125,18 +153,40 @@ export const Chat: React.FC<ChatProps> = ({
     }
   }, [messages.length, allLines.length, chatHeightLimit]);
 
-  // Intercept Tab for command completion and arrow keys/PageUp/PageDown for scrolling
+  // Intercept keyboard controls for dropdown autocomplete menu and chat history scrolling
   useInput((input, key) => {
-    if (key.tab) {
-      if (inputValue.startsWith('/') && filteredCommands.length > 0) {
-        setInputValue(filteredCommands[0].name);
+    if (key.escape) {
+      if (isLoading) {
+        onInterrupt();
+      } else {
+        setInputValue('');
       }
     }
-    if (key.pageUp || key.upArrow) {
-      setScrollOffset(prev => Math.max(0, prev - 1));
+    if (key.tab) {
+      if (inputValue.startsWith('/') && filteredCommands.length > 0) {
+        const indexToUse = Math.min(selectedCommandIndex, filteredCommands.length - 1);
+        setInputValue(filteredCommands[indexToUse].name);
+      }
     }
-    if (key.pageDown || key.downArrow) {
-      setScrollOffset(prev => Math.min(maxScrollOffset, prev + 1));
+    if (key.upArrow) {
+      if (showCommands) {
+        setSelectedCommandIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+      } else {
+        setScrollOffset(prev => Math.max(0, prev - 1));
+      }
+    }
+    if (key.downArrow) {
+      if (showCommands) {
+        setSelectedCommandIndex(prev => (prev + 1) % filteredCommands.length);
+      } else {
+        setScrollOffset(prev => Math.min(maxScrollOffset, prev + 1));
+      }
+    }
+    if (key.pageUp) {
+      setScrollOffset(prev => Math.max(0, prev - 3));
+    }
+    if (key.pageDown) {
+      setScrollOffset(prev => Math.min(maxScrollOffset, prev + 3));
     }
   });
 
@@ -146,7 +196,7 @@ export const Chat: React.FC<ChatProps> = ({
 
   return (
     <Box flexDirection="column" paddingX={2}>
-      {/* Scrollable messages viewport (collapses to 0 height when empty) */}
+      {/* Scrollable messages viewport */}
       <Box flexDirection="column">
         {showScrollUp && (
           <Text color="gray" dimColor>  ▲ scroll up (PageUp / Up Arrow)</Text>
@@ -217,12 +267,18 @@ export const Chat: React.FC<ChatProps> = ({
               <Text color="gray">│ </Text>
               <Text color="gray" bold>[ Available Commands ]</Text>
             </Box>
-            {filteredCommands.map(cmd => (
-              <Box flexDirection="row" key={cmd.name}>
-                <Text color="gray">│ </Text>
-                <Text color="white">  {cmd.name.padEnd(12)} - {cmd.desc}</Text>
-              </Box>
-            ))}
+            {filteredCommands.map((cmd, idx) => {
+              const isSelected = idx === selectedCommandIndex;
+              return (
+                <Box flexDirection="row" key={cmd.name}>
+                  <Text color="gray">│ </Text>
+                  <Text color={isSelected ? 'white' : 'gray'} bold={isSelected}>
+                    {isSelected ? '> ' : '  '}
+                    {cmd.name.padEnd(12)} - {cmd.desc}
+                  </Text>
+                </Box>
+              );
+            })}
           </Box>
         )}
       </Box>

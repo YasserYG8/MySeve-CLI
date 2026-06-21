@@ -7,11 +7,11 @@ export const Header: React.FC = () => {
     <Box flexDirection="column" alignItems="center" marginBottom={1}>
       {/* Large clear block logo */}
       <Box flexDirection="column" alignItems="center" marginBottom={1}>
-        <Text color="gray">█  █  ▄███▄   ▄████▄  ▄████▄  ██████  ██████▄ </Text>
-        <Text color="gray">▀▄▄▀ ▐█▀ ▀█▌ ▐█▀   ▀ ▐█▀   ▀  ██▄▄▄▄  ██   ██ </Text>
-        <Text color="gray">  ██ ▐█▄▄▄█▌  ▀████▄  ▀████▄  ██▀▀▀▀  ██████▀ </Text>
-        <Text color="gray">  ██ ▐█▀ ▀█▌ ▄▄   ██ ▄▄   ██  ██▄▄▄▄  ██  ▀██▄</Text>
-        <Text color="gray">  ▀▀  █▌  █▌ ▀████▀  ▀████▀   ██████  ██   ▀██</Text>
+        <Text color="gray">██  ██    ████▄    ██████   ██████  ██████  ██████▄</Text>
+        <Text color="gray"> ▀███▀   ▐█▀  ▀█▌ ▐█▀   ▀  ▐█▀   ▀  ██▄▄▄▄  ██   ██</Text>
+        <Text color="gray">  ███    ▐█▄▄▄█▌   ▀████▄   ▀████▄  ██▀▀▀▀  ██████▀</Text>
+        <Text color="gray">  ███    ▐█▀  ▀█▌ ▄▄   ██  ▄▄   ██  ██▄▄▄▄  ██  ▀██▄</Text>
+        <Text color="gray">  ▀▀▀    █▌  █▌   ▀████▀   ▀████▀   ██████  ██   ▀██</Text>
       </Box>
 
       <Box flexDirection="row" justifyContent="center" flexWrap="wrap">

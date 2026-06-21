@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import OpenAI from 'openai';
 import { SYSTEM_PROMPT } from '../constants/prompts.js';
 
@@ -11,6 +11,15 @@ export const useChat = (onViewChange: (view: string) => void) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const interruptChat = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+    }
+  }, []);
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -59,6 +68,15 @@ export const useChat = (onViewChange: (view: string) => void) => {
       return;
     }
 
+    // Cancel any previous active stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     // Add user message
     const userMsg: ChatMessage = { sender: 'user', text: trimmed };
     setMessages((prev) => [...prev, userMsg]);
@@ -93,10 +111,13 @@ export const useChat = (onViewChange: (view: string) => void) => {
         model: 'openrouter/free',
         messages: apiMessages,
         stream: true,
+      }, {
+        signal: controller.signal,
       });
 
       let accumulatedText = '';
       for await (const chunk of stream) {
+        if (controller.signal.aborted) break;
         const text = chunk.choices[0]?.delta?.content || '';
         if (text) {
           accumulatedText += text;
@@ -111,6 +132,19 @@ export const useChat = (onViewChange: (view: string) => void) => {
         }
       }
     } catch (err: any) {
+      // Handle abortion error gracefully
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('cancel')) {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last && last.sender === 'assistant') {
+            last.text = last.text ? `${last.text} ... [Interrupted]` : '... [Interrupted]';
+          }
+          return next;
+        });
+        return;
+      }
+
       setError(err?.message || 'Failed to stream response from AI');
       // Update last message with error info
       setMessages((prev) => {
@@ -122,6 +156,9 @@ export const useChat = (onViewChange: (view: string) => void) => {
         return next;
       });
     } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
       setIsLoading(false);
     }
   }, [messages, onViewChange]);
@@ -131,7 +168,9 @@ export const useChat = (onViewChange: (view: string) => void) => {
     isLoading,
     error,
     sendMessage,
+    interruptChat,
     clearChat: () => setMessages([]),
   };
 };
+
 export default useChat;

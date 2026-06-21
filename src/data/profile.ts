@@ -48,6 +48,12 @@ export const profileData: ProfileData = {
   bio: "Student in Développement des Systèmes d'Information at ISET Nabeul since 2024. Passionate about DevOps, CI/CD pipelines, containerization, and open-source contributions. Actively exploring AI-driven development tools (Claude Code, Codex, GitHub Copilot) to optimize workflows.",
   projects: [
     {
+      title: "weftmap (DataDave-Dev)",
+      github: "https://github.com/DataDave-Dev/weftmap",
+      description: "Contributing to an open-source call graph visualization tool. Analyzed pluggable grammar specs, triaged issues, and worked with Tree-sitter WASM and React Flow.",
+      stack: ["Next.js", "TypeScript", "Tree-sitter (WASM)", "React Flow", "Vitest"]
+    },
+    {
       title: "BarberGo",
       github: "https://github.com/YasserYG8/BarberGo-Project",
       description: "Full-stack home hairdresser booking platform with role-based auth (Client/Hairdresser/Admin), PDF invoice generation, email notifications, live geolocation, and a booking state machine (pending → confirmed → on_way → arrived → in_progress → done).",
@@ -65,12 +71,6 @@ export const profileData: ProfileData = {
       description: "Digital platform for organizing, booking, and tracking local soccer matches and amateur sports events in Tunisia.",
       stack: ["Next.js", "TypeScript", "Docker"]
     },
-    {
-      title: "weftmap (DataDave-Dev)",
-      github: "https://github.com/DataDave-Dev/weftmap",
-      description: "Contributing to an open-source call graph visualization tool. Analyzed pluggable grammar specs, triaged issues, and worked with Tree-sitter WASM and React Flow.",
-      stack: ["Next.js", "TypeScript", "Tree-sitter (WASM)", "React Flow", "Vitest"]
-    }
   ],
   skills: [
     {

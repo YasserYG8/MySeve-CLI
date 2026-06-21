@@ -19,7 +19,7 @@ export const App: React.FC = () => {
     setActiveView(view);
   };
 
-  const { messages, isLoading, error, sendMessage } = useChat(handleViewChange);
+  const { messages, isLoading, error, sendMessage, interruptChat } = useChat(handleViewChange);
 
   // Global keybindings
   useInput((input, key) => {
@@ -52,7 +52,7 @@ export const App: React.FC = () => {
     <Box
       flexDirection="column"
       width={columns}
-      height={rows}
+      height={rows - 2}
       paddingY={1}
       alignItems="center"
       justifyContent={activeView === 'chat' ? 'center' : 'flex-start'}
@@ -73,6 +73,7 @@ export const App: React.FC = () => {
               isLoading={isLoading}
               error={error}
               onSendMessage={sendMessage}
+              onInterrupt={interruptChat}
             />
           )}
           {activeView === 'projects' && <Projects />}
