@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Box, useInput, useApp } from 'ink';
 import Header from './components/Header.js';
-import ShortcutsBar from './components/ShortcutsBar.js';
 import Chat from './views/Chat.js';
 import Projects from './views/Projects.js';
 import Skills from './views/Skills.js';
@@ -26,14 +25,9 @@ export const App: React.FC = () => {
   useInput((input, key) => {
     const lowerInput = input.toLowerCase();
 
-    if (activeView === 'chat') {
-      // In chat view, ESC exits the application
-      if (key.escape) {
-        exit();
-      }
-    } else {
-      // In other views, ESC returns to chat
-      if (key.escape) {
+    if (activeView !== 'chat') {
+      // In other views, ESC or I returns to chat
+      if (key.escape || lowerInput === 'i') {
         setActiveView('chat');
         return;
       }
@@ -41,8 +35,6 @@ export const App: React.FC = () => {
       // Other navigation keybindings
       if (lowerInput === 'q') {
         exit();
-      } else if (lowerInput === 'i') {
-        setActiveView('chat');
       } else if (lowerInput === 'p') {
         setActiveView('projects');
       } else if (lowerInput === 's') {
@@ -56,34 +48,42 @@ export const App: React.FC = () => {
       }
     }
   });
-
   return (
-    <Box flexDirection="column" width={columns} height={rows - 2}>
-      {/* Top Header */}
-      <Header />
+    <Box
+      flexDirection="column"
+      width={columns}
+      height={rows}
+      paddingY={1}
+      alignItems="center"
+      justifyContent={activeView === 'chat' ? 'center' : 'flex-start'}
+    >
+      {/* Centered container mimicking a div */}
+      <Box
+        flexDirection="column"
+        flexGrow={activeView === 'chat' ? 0 : 1}
+        width={Math.min(80, columns - 4)}
+      >
+        <Header />
 
-      {/* Middle Content */}
-      <Box flexGrow={1} flexDirection="column">
-        {activeView === 'chat' && (
-          <Chat
-            messages={messages}
-            isLoading={isLoading}
-            error={error}
-            onSendMessage={sendMessage}
-          />
-        )}
-        {activeView === 'projects' && <Projects />}
-        {activeView === 'skills' && <Skills />}
-        {activeView === 'experience' && <Experience />}
-        {activeView === 'contact' && <Contact />}
-        {activeView === 'help' && <Help />}
-      </Box>
-
-      {/* Bottom Shortcuts */}
-      <Box>
-        <ShortcutsBar activeView={activeView} />
+        {/* Middle Content */}
+        <Box flexGrow={activeView === 'chat' ? 0 : 1} flexDirection="column">
+          {activeView === 'chat' && (
+            <Chat
+              messages={messages}
+              isLoading={isLoading}
+              error={error}
+              onSendMessage={sendMessage}
+            />
+          )}
+          {activeView === 'projects' && <Projects />}
+          {activeView === 'skills' && <Skills />}
+          {activeView === 'experience' && <Experience />}
+          {activeView === 'contact' && <Contact />}
+          {activeView === 'help' && <Help />}
+        </Box>
       </Box>
     </Box>
   );
 };
+
 export default App;

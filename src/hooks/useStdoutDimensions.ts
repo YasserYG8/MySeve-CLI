@@ -4,8 +4,8 @@ import { useStdout } from 'ink';
 export const useStdoutDimensions = () => {
   const { stdout } = useStdout();
   const [dimensions, setDimensions] = useState({
-    columns: stdout ? stdout.columns : 80,
-    rows: stdout ? stdout.rows : 24,
+    columns: stdout?.columns || 80,
+    rows: stdout?.rows || 24,
   });
 
   useEffect(() => {
@@ -13,8 +13,8 @@ export const useStdoutDimensions = () => {
 
     const handler = () => {
       setDimensions({
-        columns: stdout.columns,
-        rows: stdout.rows,
+        columns: stdout.columns || 80,
+        rows: stdout.rows || 24,
       });
     };
 

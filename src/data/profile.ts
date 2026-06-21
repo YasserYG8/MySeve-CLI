@@ -23,6 +23,7 @@ export interface ContactInfo {
   phone: string;
   github: string;
   linkedin: string;
+  website: string;
   location: string;
   status: string;
   license: string;
@@ -137,8 +138,9 @@ export const profileData: ProfileData = {
   contact: {
     email: "yasserg4e@gmail.com",
     phone: "(+216) 99 087 181",
-    github: "github.com/YasserYG8",
-    linkedin: "linkedin.com/in/gombra-yasser-a8ab46274",
+    github: "https://github.com/YasserYG8",
+    linkedin: "https://linkedin.com/in/gombra-yasser-a8ab46274",
+    website: "https://yassergombra.com",
     location: "Hammam Lif, Ben Arous / Ghomrassen, Tunisia",
     status: "Open to work — Looking for an internship",
     license: "Permis B",

@@ -9,20 +9,26 @@ export const Contact: React.FC = () => {
     return (
       <Box flexDirection="row" marginBottom={1} key={label}>
         <Box width={15}>
-          <Text color="cyan" bold>{label}:</Text>
+          <Text color="gray" bold>{label}:</Text>
         </Box>
         <Text color="white">{value}</Text>
       </Box>
     );
   };
+
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1}>
+    <Box
+      flexDirection="column"
+      paddingX={2}
+      paddingY={1}
+    >
       <Box marginBottom={1}>
-        <Text color="blue" bold underline>Contact Information</Text>
+        <Text color="gray" bold>[ Contact Information ]</Text>
       </Box>
 
       {renderRow('Email', contact.email)}
       {renderRow('Phone', contact.phone)}
+      {renderRow('Website', contact.website)}
       {renderRow('GitHub', contact.github)}
       {renderRow('LinkedIn', contact.linkedin)}
       {renderRow('Location', contact.location)}
@@ -31,9 +37,10 @@ export const Contact: React.FC = () => {
       {renderRow('Languages', contact.languages.join(', '))}
 
       <Box marginTop={1}>
-        <Text dimColor color="gray">Press [ESC] or [I] to go back to the Chat.</Text>
+        <Text color="gray">Press [ESC] or [I] to go back to the Chat.</Text>
       </Box>
     </Box>
   );
 };
+
 export default Contact;
