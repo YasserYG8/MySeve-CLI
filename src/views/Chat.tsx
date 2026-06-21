@@ -4,6 +4,7 @@ import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
 import { ChatMessage } from '../hooks/useChat.js';
 import { useStdoutDimensions } from '../hooks/useStdoutDimensions.js';
+import { usePlaceholder } from '../hooks/usePlaceholder.js';
 
 interface ChatProps {
   messages: ChatMessage[];
@@ -67,6 +68,7 @@ export const Chat: React.FC<ChatProps> = ({
   const { columns, rows } = useStdoutDimensions();
   const [scrollOffset, setScrollOffset] = useState(0);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+  const placeholder = usePlaceholder();
 
   const typedCommand = inputValue.toLowerCase().trim();
   const filteredCommands = COMMANDS.filter(cmd => 
@@ -134,11 +136,11 @@ export const Chat: React.FC<ChatProps> = ({
 
   // Calculate height budget
   let menuHeight = showCommands ? filteredCommands.length + 2 : 0;
-  let nonChatHeight = 12 + 2 + 2 + 1 + 1 + 2 + menuHeight + 2 + 2; // header + margins + padding + prompt + help tips + tips + menu + safety + terminal safety margin
+  let nonChatHeight = 7 + 2 + 2 + 1 + 1 + 2 + menuHeight + 2 + 2; // header + margins + padding + prompt + help tips + tips + menu + safety + terminal safety margin
   if (isLoading) nonChatHeight += 1;
   if (error) nonChatHeight += 1;
   
-  const chatHeightLimit = Math.max(3, rows - nonChatHeight);
+  const chatHeightLimit = Math.max(3, (rows - 1) - nonChatHeight);
   const maxScrollOffset = Math.max(0, allLines.length - chatHeightLimit);
 
   // Sync scroll to bottom when messages or loading state changes
@@ -240,13 +242,13 @@ export const Chat: React.FC<ChatProps> = ({
         <Box flexDirection="row">
           <Box flexDirection="row" flexGrow={1}>
             <Text color="gray">│ </Text>
-            <Text color="white" bold>Ask anything... </Text>
+            <Text color="white" bold>Ask {'>'} </Text>
             {/* @ts-ignore */}
             <TextInput
               value={inputValue}
               onChange={setInputValue}
               onSubmit={handleSubmit}
-              placeholder=""
+              placeholder={placeholder}
               showCursor
             />
           </Box>

@@ -7,8 +7,8 @@ export const Contact: React.FC = () => {
 
   const renderRow = (label: string, value: string) => {
     return (
-      <Box flexDirection="row" marginBottom={1} key={label}>
-        <Box width={15}>
+      <Box flexDirection="row" key={label}>
+        <Box width={12}>
           <Text color="gray" bold>{label}:</Text>
         </Box>
         <Text color="white">{value}</Text>
@@ -20,7 +20,6 @@ export const Contact: React.FC = () => {
     <Box
       flexDirection="column"
       paddingX={2}
-      paddingY={1}
     >
       <Box marginBottom={1}>
         <Text color="gray" bold>[ Contact Information ]</Text>

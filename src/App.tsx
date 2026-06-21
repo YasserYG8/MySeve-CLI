@@ -14,7 +14,6 @@ export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<string>('chat');
   const { exit } = useApp();
   const { columns, rows } = useStdoutDimensions();
-
   const handleViewChange = (view: string) => {
     setActiveView(view);
   };
@@ -52,21 +51,19 @@ export const App: React.FC = () => {
     <Box
       flexDirection="column"
       width={columns}
-      height={rows - 2}
-      paddingY={1}
+      height={rows - 1}
       alignItems="center"
-      justifyContent={activeView === 'chat' ? 'center' : 'flex-start'}
+      justifyContent="center"
     >
       {/* Centered container mimicking a div */}
       <Box
         flexDirection="column"
-        flexGrow={activeView === 'chat' ? 0 : 1}
         width={Math.min(80, columns - 4)}
       >
         <Header />
 
         {/* Middle Content */}
-        <Box flexGrow={activeView === 'chat' ? 0 : 1} flexDirection="column">
+        <Box flexDirection="column">
           {activeView === 'chat' && (
             <Chat
               messages={messages}

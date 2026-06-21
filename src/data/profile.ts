@@ -144,6 +144,6 @@ export const profileData: ProfileData = {
     location: "Hammam Lif, Ben Arous / Ghomrassen, Tunisia",
     status: "Open to work — Looking for an internship",
     license: "Permis B",
-    languages: ["Arabic (Native)", "French (Fluent)", "English (Intermediate)"]
+    languages: ["Arabic (Native)", "French (Normal)", "English (Intermediate)"]
   }
 };

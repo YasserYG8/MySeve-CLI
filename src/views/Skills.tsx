@@ -1,30 +1,35 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { profileData } from '../data/profile.js';
+import useStdoutDimensions from '../hooks/useStdoutDimensions.js';
 
 export const Skills: React.FC = () => {
   const { skills } = profileData;
+  const { columns, rows } = useStdoutDimensions();
   const [scrollOffset, setScrollOffset] = useState(0);
-  const itemsPerPage = 3;
-  const currentPage = scrollOffset + 1;
+
+  // Dynamically size the page based on console height to prevent terminal scrolling
+  const itemsPerPage = rows >= 36 ? 3 : 2;
+  const totalPages = Math.ceil(skills.length / itemsPerPage);
+  const currentPage = Math.floor(scrollOffset / itemsPerPage) + 1;
 
   useInput((input, key) => {
     if (key.upArrow) {
-      setScrollOffset(prev => Math.max(0, prev - 1));
+      setScrollOffset(prev => Math.max(0, prev - itemsPerPage));
     }
     if (key.downArrow) {
-      setScrollOffset(prev => Math.min(skills.length - itemsPerPage, prev + 1));
+      setScrollOffset(prev => Math.min(skills.length - itemsPerPage, prev + itemsPerPage));
     }
   });
 
   const visibleSkills = skills.slice(scrollOffset, scrollOffset + itemsPerPage);
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1}>
+    <Box flexDirection="column" paddingX={2}>
       <Box marginBottom={1} justifyContent="space-between">
         <Text color="gray" bold>[ Skills & Technologies ]</Text>
         <Text color="gray">
-          (Page {currentPage}/{skills.length - itemsPerPage + 1} · Use ↑/↓ to scroll)
+          (Page {currentPage}/{totalPages} · Use ↑/↓ to scroll)
         </Text>
       </Box>
 
@@ -34,10 +39,10 @@ export const Skills: React.FC = () => {
           flexDirection="column"
           borderStyle="single"
           borderColor="gray"
-          paddingX={1}
+          padding={1}
           marginBottom={1}
         >
-          <Box marginBottom={1}>
+          <Box>
             <Text color="white" bold>[ {cat.category} ]</Text>
           </Box>
           <Box flexDirection="row" flexWrap="wrap">
