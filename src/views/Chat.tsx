@@ -134,7 +134,7 @@ export const Chat: React.FC<ChatProps> = ({
 
   // Calculate height budget
   let menuHeight = showCommands ? filteredCommands.length + 2 : 0;
-  let nonChatHeight = 8 + 2 + 2 + 1 + 1 + 2 + menuHeight + 2 + 2; // header + margins + padding + prompt + help tips + tips + menu + safety + terminal safety margin
+  let nonChatHeight = 12 + 2 + 2 + 1 + 1 + 2 + menuHeight + 2 + 2; // header + margins + padding + prompt + help tips + tips + menu + safety + terminal safety margin
   if (isLoading) nonChatHeight += 1;
   if (error) nonChatHeight += 1;
   
