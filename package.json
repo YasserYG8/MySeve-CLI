@@ -1,6 +1,6 @@
 {
   "name": "yassergombra",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Interactive Terminal CV of Yasser Gombra",
   "main": "dist/index.js",
   "type": "module",
