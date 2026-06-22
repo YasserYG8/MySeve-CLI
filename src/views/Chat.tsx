@@ -57,6 +57,95 @@ function wrapLine(text: string, limit: number): string[] {
   return lines;
 }
 
+const parseLineMarkdown = (text: string): React.ReactNode[] => {
+  const regex = /(\*\*.*?\*\*|\*.*?\*|`.*?`)/gi;
+  const parts = text.split(regex);
+
+  return parts.map((part, index) => {
+    if (!part) return null;
+
+    // Check markdown bold (render bold white for professional look)
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <Text key={index} bold color="white">
+          {part.slice(2, -2)}
+        </Text>
+      );
+    }
+    // Check markdown italic (render italic white)
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return (
+        <Text key={index} italic color="white">
+          {part.slice(1, -1)}
+        </Text>
+      );
+    }
+    // Check markdown code (render in professional cyan)
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <Text key={index} color="cyan">
+          {part.slice(1, -1)}
+        </Text>
+      );
+    }
+
+    // Normal text for AI (clean white instead of gray)
+    return (
+      <Text key={index} color="white">
+        {part}
+      </Text>
+    );
+  });
+};
+
+const renderLine = (line: { text: string; color: string; bold?: boolean }, idx: number) => {
+  const text = line.text;
+
+  // If it's a user message line, just render it normally in white/blue
+  if (line.color === 'white') {
+    if (text.startsWith('yasser@cv:~$ ')) {
+      return (
+        <Text key={idx} color="white">
+          <Text color="blue" bold>yasser@cv:~$ </Text>
+          {text.slice(13)}
+        </Text>
+      );
+    }
+    return (
+      <Text key={idx} color="white">
+        {text}
+      </Text>
+    );
+  }
+
+  // For assistant message lines (which were gray):
+  if (text.startsWith('AI > ')) {
+    return (
+      <Text key={idx}>
+        <Text color="green" bold>AI &gt; </Text>
+        {parseLineMarkdown(text.slice(5))}
+      </Text>
+    );
+  }
+
+  // For wrapped lines (5 spaces indentation)
+  if (text.startsWith('     ')) {
+    return (
+      <Text key={idx}>
+        <Text>     </Text>
+        {parseLineMarkdown(text.slice(5))}
+      </Text>
+    );
+  }
+
+  // Fallback (like empty lines)
+  return (
+    <Text key={idx} color={line.color as any} bold={line.bold}>
+      {text}
+    </Text>
+  );
+};
+
 export const Chat: React.FC<ChatProps> = ({
   messages,
   isLoading,
@@ -205,11 +294,7 @@ export const Chat: React.FC<ChatProps> = ({
         )}
 
         {messages.length > 0 && (
-          visibleLines.map((line, idx) => (
-            <Text key={idx} color={line.color as any} bold={line.bold}>
-              {line.text}
-            </Text>
-          ))
+          visibleLines.map((line, idx) => renderLine(line, idx))
         )}
 
         {showScrollDown && (
