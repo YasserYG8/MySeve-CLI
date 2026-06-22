@@ -42,7 +42,7 @@ export default async function handler(req) {
         'X-Title': 'Yasser Gombra Terminal CV',
       },
       body: JSON.stringify({
-        model: 'openrouter/free',
+        model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
         messages: messages,
         stream: true,
       }),
@@ -61,6 +61,8 @@ export default async function handler(req) {
       async start(controller) {
         const reader = openRouterResponse.body.getReader();
         let buffer = '';
+        let initialText = '';
+        let isFiltering = true;
 
         try {
           while (true) {
@@ -80,11 +82,48 @@ export default async function handler(req) {
                   const json = JSON.parse(dataStr);
                   const text = json.choices[0]?.delta?.content || '';
                   if (text) {
-                    controller.enqueue(encoder.encode(text));
+                    if (isFiltering) {
+                      initialText += text;
+                      const trimmed = initialText.trim();
+                      const lower = trimmed.toLowerCase();
+                      const target = "user safety: safe";
+
+                      if (target.startsWith(lower)) {
+                        if (lower.length < target.length) {
+                          continue;
+                        }
+                        isFiltering = false;
+                        initialText = '';
+                      } else if (lower.startsWith(target)) {
+                        const remainder = trimmed.slice(target.length).trimStart();
+                        if (remainder) {
+                          controller.enqueue(encoder.encode(remainder));
+                        }
+                        isFiltering = false;
+                      } else {
+                        controller.enqueue(encoder.encode(initialText));
+                        isFiltering = false;
+                      }
+                    } else {
+                      controller.enqueue(encoder.encode(text));
+                    }
                   }
                 } catch (e) {
                   // Ignore parsing errors for empty/keep-alive SSE lines
                 }
+              }
+            }
+          }
+          if (isFiltering && initialText) {
+            const trimmed = initialText.trim();
+            const lower = trimmed.toLowerCase();
+            const target = "user safety: safe";
+            if (!lower.startsWith(target)) {
+              controller.enqueue(encoder.encode(initialText));
+            } else {
+              const remainder = trimmed.slice(target.length).trimStart();
+              if (remainder) {
+                controller.enqueue(encoder.encode(remainder));
               }
             }
           }

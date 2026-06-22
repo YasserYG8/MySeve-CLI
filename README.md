@@ -76,3 +76,27 @@ npm start
    ```bash
    npx yassergombra
    ```
+
+## Proxy Deployment (Vercel)
+
+The TUI communicates with OpenRouter through a secure, serverless API proxy hosted on Vercel. This prevents exposing your private `OPENROUTER_API_KEY` inside the published client package.
+
+The proxy is located in the `proxy/` directory and uses the Vercel Edge Runtime.
+
+### To Deploy the Proxy:
+1. Navigate into the proxy directory:
+   ```bash
+   cd proxy
+   ```
+2. Log in and deploy using the Vercel CLI:
+   ```bash
+   vercel login
+   vercel --prod
+   ```
+3. Set the environment variable on Vercel:
+   ```bash
+   vercel env add OPENROUTER_API_KEY
+   ```
+   *(Ensure you apply it to the Production environment, and run `vercel --prod` again to activate the changes).*
+
+4. The proxy runs at `https://<your-project>.vercel.app/api/chat`.
