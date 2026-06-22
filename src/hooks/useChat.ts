@@ -63,10 +63,6 @@ export const useChat = (onViewChange: (view: string) => void) => {
     }
 
     const apiKey = process.env['OPENROUTER_API_KEY'];
-    if (!apiKey) {
-      setError('OPENROUTER_API_KEY is not defined in your environment/dotenv file.');
-      return;
-    }
 
     // Cancel any previous active stream
     if (abortControllerRef.current) {
@@ -98,37 +94,81 @@ export const useChat = (onViewChange: (view: string) => void) => {
     setMessages((prev) => [...prev, { sender: 'assistant', text: '' }]);
 
     try {
-      const openai = new OpenAI({
-        baseURL: 'https://openrouter.ai/api/v1',
-        apiKey: apiKey,
-        defaultHeaders: {
-          'HTTP-Referer': 'https://github.com/YasserYG8/MySeve-CLI',
-          'X-Title': 'Yasser Gombra Terminal CV',
-        }
-      });
-
-      const stream = await openai.chat.completions.create({
-        model: 'openrouter/free',
-        messages: apiMessages,
-        stream: true,
-      }, {
-        signal: controller.signal,
-      });
-
       let accumulatedText = '';
-      for await (const chunk of stream) {
-        if (controller.signal.aborted) break;
-        const text = chunk.choices[0]?.delta?.content || '';
-        if (text) {
-          accumulatedText += text;
-          setMessages((prev) => {
-            const next = [...prev];
-            const last = next[next.length - 1];
-            if (last && last.sender === 'assistant') {
-              last.text = accumulatedText;
-            }
-            return next;
-          });
+
+      if (apiKey) {
+        // Direct OpenRouter Call (local dev with .env)
+        const openai = new OpenAI({
+          baseURL: 'https://openrouter.ai/api/v1',
+          apiKey: apiKey,
+          defaultHeaders: {
+            'HTTP-Referer': 'https://github.com/YasserYG8/MySeve-CLI',
+            'X-Title': 'Yasser Gombra Terminal CV',
+          }
+        });
+
+        const stream = await openai.chat.completions.create({
+          model: 'openrouter/free',
+          messages: apiMessages,
+          stream: true,
+        }, {
+          signal: controller.signal,
+        });
+
+        for await (const chunk of stream) {
+          if (controller.signal.aborted) break;
+          const text = chunk.choices[0]?.delta?.content || '';
+          if (text) {
+            accumulatedText += text;
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last && last.sender === 'assistant') {
+                last.text = accumulatedText;
+              }
+              return next;
+            });
+          }
+        }
+      } else {
+        // Proxy call (production/npm fallback)
+        const proxyUrl = process.env['CHAT_PROXY_URL'] || 'https://proxyclipart.vercel.app/api/chat';
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ messages: apiMessages }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(errText || `Server responded with status ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('Response stream is not readable');
+        }
+
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done || controller.signal.aborted) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          if (chunk) {
+            accumulatedText += chunk;
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last && last.sender === 'assistant') {
+                last.text = accumulatedText;
+              }
+              return next;
+            });
+          }
         }
       }
     } catch (err: any) {
