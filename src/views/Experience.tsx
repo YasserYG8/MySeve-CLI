@@ -1,76 +1,50 @@
-import React, { useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import React from 'react';
+import { Text } from 'ink';
 import { profileData } from '../data/profile.js';
-import useStdoutDimensions from '../hooks/useStdoutDimensions.js';
+import { theme } from '../constants/theme.js';
+import { displayWidth, wrapText } from '../utils/text.js';
+import ScrollView, { Block } from '../components/ScrollView.js';
+import Spine, { SPINE_WIDTH, SpineDot } from '../components/Spine.js';
 
-export const Experience: React.FC = () => {
-  const { experience } = profileData;
-  const { columns, rows } = useStdoutDimensions();
-  const [scrollOffset, setScrollOffset] = useState(0);
+interface ViewProps {
+  width: number;
+  height: number;
+}
 
-  // Dynamically size the page based on console height to prevent terminal scrolling
-  const itemsPerPage = rows >= 36 ? 2 : 1;
-  const totalPages = Math.ceil(experience.length / itemsPerPage);
-  const currentPage = Math.floor(scrollOffset / itemsPerPage) + 1;
+export const Experience: React.FC<ViewProps> = ({ width, height }) => {
+  const textWidth = Math.max(1, width - SPINE_WIDTH);
 
-  useInput((input, key) => {
-    if (key.upArrow) {
-      setScrollOffset(prev => Math.max(0, prev - itemsPerPage));
-    }
-    if (key.downArrow) {
-      setScrollOffset(prev => Math.min(experience.length - itemsPerPage, prev + itemsPerPage));
-    }
+  const blocks: Block[] = profileData.experience.map((item) => {
+    const place = `@ ${item.organization}`;
+    const headingFits = displayWidth(`${item.title} ${place}`) <= textWidth;
+    const meta = [item.period, item.location].filter(Boolean).join(' · ');
+
+    const heading = headingFits
+      ? [<Text><Text bold>{item.title}</Text> {place}</Text>]
+      : [
+          ...wrapText(item.title, textWidth).map((line) => <Text bold>{line}</Text>),
+          ...wrapText(place, textWidth).map((line) => <Text>{line}</Text>),
+        ];
+
+    return [
+      ...heading.map((node, index) => (
+        <Text>
+          {index === 0 ? <SpineDot /> : <Spine />}
+          {node}
+        </Text>
+      )),
+      ...wrapText(meta, textWidth).map((line) => (
+        <Text><Spine /><Text color={theme.muted}>{line}</Text></Text>
+      )),
+      ...item.details.flatMap((detail) =>
+        wrapText(`• ${detail}`, textWidth).map((line) => (
+          <Text><Spine />{line}</Text>
+        ))
+      ),
+    ];
   });
 
-  const visibleExperience = experience.slice(scrollOffset, scrollOffset + itemsPerPage);
-
-  return (
-    <Box flexDirection="column" paddingX={2}>
-      <Box marginBottom={1} justifyContent="space-between">
-        <Text color="gray" bold>[ Professional Experience & Education ]</Text>
-        <Text color="gray">
-          (Page {currentPage}/{totalPages} · Use ↑/↓ to scroll)
-        </Text>
-      </Box>
-
-      {visibleExperience.map((item, idx) => {
-        return (
-          <Box
-            key={idx}
-            flexDirection="column"
-            borderStyle="single"
-            borderColor="gray"
-            padding={1}
-            marginBottom={1}
-          >
-            <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap">
-              <Box flexDirection="row">
-                <Text color="white" bold>[ {item.title} ]</Text>
-                <Text color="white"> @ {item.organization}</Text>
-              </Box>
-              {item.location && <Text color="gray">{item.location}</Text>}
-            </Box>
-            <Box marginLeft={2} marginTop={1}>
-              <Text color="gray">{item.period}</Text>
-            </Box>
-            {item.details.length > 0 && (
-              <Box flexDirection="column" marginLeft={2} marginTop={1}>
-                {item.details.map((detail, dIdx) => (
-                  <Text key={dIdx} color="white">
-                    - {detail}
-                  </Text>
-                ))}
-              </Box>
-            )}
-          </Box>
-        );
-      })}
-
-      <Box marginTop={1}>
-        <Text color="gray">Press [ESC] or [I] to go back to the Chat.</Text>
-      </Box>
-    </Box>
-  );
+  return <ScrollView title="Professional Experience & Education" blocks={blocks} width={width} height={height} />;
 };
 
 export default Experience;

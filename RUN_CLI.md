@@ -60,7 +60,7 @@ npx yassergombra
 - **🤖 AI Chat Integration**: Chat with Yasser's personal AI agent in real-time. Ask questions like:
   - *"What is Yasser's tech stack?"*
   - *"Is Yasser open to internships?"*
-  - *"Tell me about the BarberGo project."*
+  - *"Tell me about the Specter project."*
 - **📂 Interactive Navigation**: Switch between views instantly using hotkeys:
   - Press `P` for **Projects**
   - Press `S` for **Skills**

@@ -1,45 +1,46 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Text } from 'ink';
 import { profileData } from '../data/profile.js';
+import { theme } from '../constants/theme.js';
+import { wrapText } from '../utils/text.js';
+import ScrollView, { Block } from '../components/ScrollView.js';
 
-export const Contact: React.FC = () => {
+const LABEL_WIDTH = 11;
+
+interface ViewProps {
+  width: number;
+  height: number;
+}
+
+export const Contact: React.FC<ViewProps> = ({ width, height }) => {
   const { contact } = profileData;
 
-  const renderRow = (label: string, value: string) => {
-    return (
-      <Box flexDirection="row" key={label}>
-        <Box width={12}>
-          <Text color="gray" bold>{label}:</Text>
-        </Box>
-        <Text color="white">{value}</Text>
-      </Box>
-    );
-  };
+  const rows = (label: string, value: string, color?: string): Block =>
+    wrapText(value, Math.max(1, width - LABEL_WIDTH)).map((line, index) => (
+      <Text>
+        <Text color={theme.muted}>{(index === 0 ? label : '').padEnd(LABEL_WIDTH)}</Text>
+        <Text color={color}>{line}</Text>
+      </Text>
+    ));
 
-  return (
-    <Box
-      flexDirection="column"
-      paddingX={2}
-    >
-      <Box marginBottom={1}>
-        <Text color="gray" bold>[ Contact Information ]</Text>
-      </Box>
+  const blocks: Block[] = [
+    [
+      ...rows('Email', contact.email, theme.accent),
+      ...rows('Phone', contact.phone),
+      ...rows('Website', contact.website, theme.accent),
+      ...rows('GitHub', contact.github, theme.accent),
+      ...rows('LinkedIn', contact.linkedin, theme.accent),
+      ...rows('X', contact.x, theme.accent),
+    ],
+    [
+      ...rows('Status', contact.status, theme.good),
+      ...rows('Location', contact.location),
+      ...rows('Languages', contact.languages.join(', ')),
+      ...rows('Driving', contact.license),
+    ],
+  ];
 
-      {renderRow('Email', contact.email)}
-      {renderRow('Phone', contact.phone)}
-      {renderRow('Website', contact.website)}
-      {renderRow('GitHub', contact.github)}
-      {renderRow('LinkedIn', contact.linkedin)}
-      {renderRow('Location', contact.location)}
-      {renderRow('Status', contact.status)}
-      {renderRow('License', contact.license)}
-      {renderRow('Languages', contact.languages.join(', '))}
-
-      <Box marginTop={1}>
-        <Text color="gray">Press [ESC] or [I] to go back to the Chat.</Text>
-      </Box>
-    </Box>
-  );
+  return <ScrollView title="Contact Information" blocks={blocks} width={width} height={height} />;
 };
 
 export default Contact;

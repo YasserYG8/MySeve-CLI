@@ -3,191 +3,162 @@ import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
 import { ChatMessage } from '../hooks/useChat.js';
-import { useStdoutDimensions } from '../hooks/useStdoutDimensions.js';
 import { usePlaceholder } from '../hooks/usePlaceholder.js';
+import { COMMANDS } from '../constants/commands.js';
+import { theme } from '../constants/theme.js';
+import { profileData } from '../data/profile.js';
+import ScrollBar, { SCROLL_GUTTER } from '../components/ScrollBar.js';
+import { balanceBold, displayWidth, formatReply, wrapText } from '../utils/text.js';
 
 interface ChatProps {
   messages: ChatMessage[];
   isLoading: boolean;
-  error: string | null;
   onSendMessage: (text: string) => void;
   onInterrupt: () => void;
+  width: number;
+  height: number;
 }
 
-const COMMANDS = [
-  { name: '/projects', desc: 'Show Projects' },
-  { name: '/skills', desc: 'Show Skills' },
-  { name: '/experience', desc: 'Show Experience' },
-  { name: '/contact', desc: 'Show Contact Info' },
-  { name: '/help', desc: 'Show Help Screen' },
-  { name: '/clear', desc: 'Clear Chat History' }
-];
+type LineKind = 'user' | 'assistant' | 'error' | 'thinking' | 'blank';
 
-// Helper to wrap lines to terminal width
-function wrapLine(text: string, limit: number): string[] {
-  const lines: string[] = [];
-  const paragraphs = text.split('\n');
-  
-  for (const paragraph of paragraphs) {
-    if (paragraph.length === 0) {
-      lines.push('');
-      continue;
+interface ChatLine {
+  kind: LineKind;
+  isFirst: boolean;
+  text: string;
+}
+
+const LABEL_WIDTH = 5;
+const PROMPT_PREFIX_WIDTH = 8; // "┃ Ask > "
+const GAP_ABOVE_PROMPT = 1;
+const HINT_ROWS = 2; // one gap, one row of hints
+
+const INLINE_MARKDOWN = /(\*\*.+?\*\*|\*[^\s*](?:[^*]*[^\s*])?\*|`[^`]+`)/g;
+
+function toChatLines(messages: ChatMessage[], isLoading: boolean, width: number): ChatLine[] {
+  const textWidth = Math.max(1, width - LABEL_WIDTH);
+  const lines: ChatLine[] = [];
+
+  messages.forEach((message, index) => {
+    const isWaiting = message.sender === 'assistant' && !message.text;
+    if (isWaiting && !(isLoading && index === messages.length - 1)) return;
+    if (lines.length > 0) lines.push({ kind: 'blank', isFirst: false, text: '' });
+
+    if (isWaiting) {
+      lines.push({ kind: 'thinking', isFirst: true, text: '' });
+      return;
     }
-    const words = paragraph.split(' ');
-    let currentLine = '';
-    
-    for (const word of words) {
-      if (currentLine.length + word.length + 1 > limit) {
-        if (currentLine.length > 0) {
-          lines.push(currentLine);
-          currentLine = word;
-        } else {
-          // Word itself is longer than limit, force push it
-          lines.push(word);
-          currentLine = '';
-        }
-      } else {
-        currentLine = currentLine.length > 0 ? currentLine + ' ' + word : word;
-      }
-    }
-    if (currentLine.length > 0) {
-      lines.push(currentLine);
-    }
-  }
+
+    const kind: LineKind = message.sender === 'user' ? 'user' : message.isError ? 'error' : 'assistant';
+    const wrapped = kind === 'assistant'
+      ? balanceBold(wrapText(formatReply(message.text), textWidth))
+      : wrapText(message.text, textWidth);
+    wrapped.forEach((text, lineIndex) => lines.push({ kind, isFirst: lineIndex === 0, text }));
+  });
+
   return lines;
 }
 
-const parseLineMarkdown = (text: string): React.ReactNode[] => {
-  const regex = /(\*\*.*?\*\*|\*.*?\*|`.*?`)/gi;
-  const parts = text.split(regex);
-
-  return parts.map((part, index) => {
-    if (!part) return null;
-
-    // Check markdown bold (render bold white for professional look)
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <Text key={index} bold color="white">
-          {part.slice(2, -2)}
-        </Text>
-      );
-    }
-    // Check markdown italic (render italic white)
-    if (part.startsWith('*') && part.endsWith('*')) {
-      return (
-        <Text key={index} italic color="white">
-          {part.slice(1, -1)}
-        </Text>
-      );
-    }
-    // Check markdown code (render in professional cyan)
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <Text key={index} color="cyan">
-          {part.slice(1, -1)}
-        </Text>
-      );
-    }
-
-    // Normal text for AI (clean white instead of gray)
-    return (
-      <Text key={index} color="white">
-        {part}
-      </Text>
-    );
+const renderInline = (text: string): React.ReactNode[] =>
+  text.split(INLINE_MARKDOWN).map((part, index) => {
+    if (index % 2 === 0) return part;
+    if (part.startsWith('**')) return <Text key={index} bold>{part.slice(2, -2)}</Text>;
+    if (part.startsWith('`')) return <Text key={index} color={theme.accent}>{part.slice(1, -1)}</Text>;
+    return <Text key={index} italic>{part.slice(1, -1)}</Text>;
   });
+
+const LABELS: Partial<Record<LineKind, { text: string; color: string }>> = {
+  user: { text: 'you', color: theme.accent },
+  assistant: { text: 'AI', color: theme.good },
+  thinking: { text: 'AI', color: theme.good },
+  error: { text: 'AI', color: theme.bad },
 };
 
-const renderLine = (line: { text: string; color: string; bold?: boolean }, idx: number) => {
-  const text = line.text;
+const renderLine = (line: ChatLine, key: number) => {
+  const label = LABELS[line.kind];
+  const labelText = (line.isFirst && label ? label.text : '').padEnd(LABEL_WIDTH);
 
-  // If it's a user message line, just render it normally in white/blue
-  if (line.color === 'white') {
-    if (text.startsWith('yasser@cv:~$ ')) {
-      return (
-        <Text key={idx} color="white">
-          <Text color="blue" bold>yasser@cv:~$ </Text>
-          {text.slice(13)}
-        </Text>
-      );
-    }
-    return (
-      <Text key={idx} color="white">
-        {text}
-      </Text>
-    );
-  }
-
-  // For assistant message lines (which were gray):
-  if (text.startsWith('AI > ')) {
-    return (
-      <Text key={idx}>
-        <Text color="green" bold>AI &gt; </Text>
-        {parseLineMarkdown(text.slice(5))}
-      </Text>
-    );
-  }
-
-  // For wrapped lines (5 spaces indentation)
-  if (text.startsWith('     ')) {
-    return (
-      <Text key={idx}>
-        <Text>     </Text>
-        {parseLineMarkdown(text.slice(5))}
-      </Text>
-    );
-  }
-
-  // Fallback (like empty lines)
   return (
-    <Text key={idx} color={line.color as any} bold={line.bold}>
-      {text}
-    </Text>
+    <Box key={key} height={1} flexShrink={0}>
+      <Text wrap="truncate-end">
+        <Text bold color={label?.color}>{labelText}</Text>
+        {line.kind === 'assistant' && renderInline(line.text)}
+        {(line.kind === 'user' || line.kind === 'blank') && line.text}
+        {line.kind === 'error' && line.text}
+        {line.kind === 'thinking' && (
+          <Text color={theme.muted}>
+            {/* @ts-ignore */}
+            <Spinner type="dots" />
+            {' Thinking...'}
+          </Text>
+        )}
+      </Text>
+    </Box>
   );
 };
 
 export const Chat: React.FC<ChatProps> = ({
   messages,
   isLoading,
-  error,
   onSendMessage,
   onInterrupt,
+  width,
+  height,
 }) => {
   const [inputValue, setInputValue] = useState('');
-  const { columns, rows } = useStdoutDimensions();
-  const [scrollOffset, setScrollOffset] = useState(0);
+  // The text input only moves its cursor to the end when it mounts, so a new
+  // key is needed each time the code (not the keyboard) changes the text.
+  const [inputKey, setInputKey] = useState(0);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const placeholder = usePlaceholder();
 
+  const setInputFromCode = (value: string) => {
+    setInputValue(value);
+    setInputKey((key) => key + 1);
+  };
+
   const typedCommand = inputValue.toLowerCase().trim();
-  const filteredCommands = COMMANDS.filter(cmd => 
-    cmd.name.startsWith(typedCommand)
-  );
+  const filteredCommands = COMMANDS.filter((command) => command.name.startsWith(typedCommand));
   const showCommands = inputValue.startsWith('/') && filteredCommands.length > 0;
 
-  // Keep selectedCommandIndex in bounds when input changes
+  const isLanding = messages.length === 0;
+  const inputWidth = Math.max(1, width - PROMPT_PREFIX_WIDTH);
+  const promptRows = Math.max(1, Math.ceil((displayWidth(inputValue || placeholder) + 1) / inputWidth));
+  const menuRows = showCommands ? filteredCommands.length + 1 : 0;
+  const chromeRows = GAP_ABOVE_PROMPT + promptRows + menuRows + HINT_ROWS;
+  const viewportRows = Math.max(1, height - chromeRows);
+
+  const allLines = toChatLines(messages, isLoading, width - SCROLL_GUTTER);
+  const maxScrollOffset = Math.max(0, allLines.length - viewportRows);
+  const [scrollOffset, setScrollOffset] = useState(maxScrollOffset);
+  const visibleOffset = Math.min(scrollOffset, maxScrollOffset);
+  const visibleLines = allLines.slice(visibleOffset, visibleOffset + viewportRows);
+
+  const bioLines = wrapText(profileData.bio, width);
+  const showBio = isLanding && bioLines.length <= viewportRows;
+
   useEffect(() => {
     setSelectedCommandIndex(0);
   }, [inputValue]);
 
+  // Follow new text, and stay at the end when the space for messages changes.
+  const previousRef = useRef({ lines: allLines.length, rows: viewportRows });
+  useEffect(() => {
+    const previous = previousRef.current;
+    if (previous.lines !== allLines.length || previous.rows !== viewportRows) {
+      previousRef.current = { lines: allLines.length, rows: viewportRows };
+      setScrollOffset(maxScrollOffset);
+    }
+  }, [allLines.length, viewportRows, maxScrollOffset]);
+
   const handleSubmit = (value: string) => {
     let textToSubmit = value.trim();
 
-    // Auto-complete commands on Enter submission
+    // A partial command runs the highlighted match, so /p then Enter opens /projects.
     if (textToSubmit.startsWith('/')) {
       const typed = textToSubmit.toLowerCase();
-      const matches = COMMANDS.filter(cmd => cmd.name.startsWith(typed));
-      
-      if (matches.length === 1) {
-        // If there is exactly one matching command (e.g. /p -> /projects), auto-complete and run it
-        textToSubmit = matches[0].name;
-      } else if (matches.length > 1) {
-        // If there are multiple matches, submit the currently highlighted index
-        if (selectedCommandIndex >= 0 && selectedCommandIndex < matches.length) {
-          textToSubmit = matches[selectedCommandIndex].name;
-        } else {
-          textToSubmit = matches[0].name;
-        }
+      const matches = COMMANDS.filter((command) => command.name.startsWith(typed));
+      if (matches.length > 0) {
+        textToSubmit = (matches[selectedCommandIndex] ?? matches[0]).name;
       }
     }
 
@@ -197,139 +168,76 @@ export const Chat: React.FC<ChatProps> = ({
     }
   };
 
-  // Format all chat messages into console lines
-  const availableWidth = Math.min(80, columns - 4) - 4;
-  const allLines: { text: string; color: string; bold?: boolean }[] = [];
-
-  messages.forEach(msg => {
-    const isUser = msg.sender === 'user';
-    const prefix = isUser ? 'yasser@cv:~$ ' : 'AI > ';
-    const wrapped = wrapLine(msg.text, availableWidth - prefix.length);
-
-    if (wrapped.length > 0) {
-      allLines.push({
-        text: `${prefix}${wrapped[0]}`,
-        color: isUser ? 'white' : 'gray',
-        bold: false
-      });
-      for (let i = 1; i < wrapped.length; i++) {
-        allLines.push({
-          text: ' '.repeat(prefix.length) + wrapped[i],
-          color: isUser ? 'white' : 'gray'
-        });
-      }
-      // Add newline after each message block for spacing
-      allLines.push({ text: '', color: 'gray' });
-    }
-  });
-
-  // Calculate height budget
-  let menuHeight = showCommands ? filteredCommands.length + 2 : 0;
-  let nonChatHeight = 7 + 2 + 2 + 1 + 1 + 2 + menuHeight + 2 + 2; // header + margins + padding + prompt + help tips + tips + menu + safety + terminal safety margin
-  if (isLoading) nonChatHeight += 1;
-  if (error) nonChatHeight += 1;
-  
-  const chatHeightLimit = Math.max(3, (rows - 1) - nonChatHeight);
-  const maxScrollOffset = Math.max(0, allLines.length - chatHeightLimit);
-
-  // Sync scroll to bottom when messages or loading state changes
-  const prevMsgCountRef = useRef(messages.length);
-  const prevLinesCountRef = useRef(allLines.length);
-
-  useEffect(() => {
-    if (messages.length !== prevMsgCountRef.current || allLines.length !== prevLinesCountRef.current) {
-      prevMsgCountRef.current = messages.length;
-      prevLinesCountRef.current = allLines.length;
-      setScrollOffset(Math.max(0, allLines.length - chatHeightLimit));
-    }
-  }, [messages.length, allLines.length, chatHeightLimit]);
-
-  // Intercept keyboard controls for dropdown autocomplete menu and chat history scrolling
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (key.escape) {
       if (isLoading) {
         onInterrupt();
-      } else {
-        setInputValue('');
+      } else if (inputValue) {
+        setInputFromCode('');
       }
     }
     if (key.tab) {
-      if (inputValue.startsWith('/') && filteredCommands.length > 0) {
-        const indexToUse = Math.min(selectedCommandIndex, filteredCommands.length - 1);
-        setInputValue(filteredCommands[indexToUse].name);
+      if (inputValue === '') {
+        setInputFromCode('/');
+      } else if (showCommands) {
+        const index = Math.min(selectedCommandIndex, filteredCommands.length - 1);
+        setInputFromCode(filteredCommands[index].name);
       }
     }
     if (key.upArrow) {
       if (showCommands) {
-        setSelectedCommandIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+        setSelectedCommandIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
       } else {
-        setScrollOffset(prev => Math.max(0, prev - 1));
+        setScrollOffset(Math.max(0, visibleOffset - 1));
       }
     }
     if (key.downArrow) {
       if (showCommands) {
-        setSelectedCommandIndex(prev => (prev + 1) % filteredCommands.length);
+        setSelectedCommandIndex((prev) => (prev + 1) % filteredCommands.length);
       } else {
-        setScrollOffset(prev => Math.min(maxScrollOffset, prev + 1));
+        setScrollOffset(Math.min(maxScrollOffset, visibleOffset + 1));
       }
     }
     if (key.pageUp) {
-      setScrollOffset(prev => Math.max(0, prev - 3));
+      setScrollOffset(Math.max(0, visibleOffset - viewportRows));
     }
     if (key.pageDown) {
-      setScrollOffset(prev => Math.min(maxScrollOffset, prev + 3));
+      setScrollOffset(Math.min(maxScrollOffset, visibleOffset + viewportRows));
     }
   });
 
-  const visibleLines = allLines.slice(scrollOffset, scrollOffset + chatHeightLimit);
-  const showScrollUp = scrollOffset > 0;
-  const showScrollDown = scrollOffset < maxScrollOffset;
+  let hint = width >= 40 ? 'enter send · tab commands · ctrl+c quit' : 'enter send · tab commands';
+  if (showCommands) hint = width >= 36 ? '↑↓ choose · tab complete · enter run' : 'tab complete · enter run';
+  if (isLoading) hint = 'esc stop · ctrl+c quit';
+
+  const scrollHint = maxScrollOffset > 0 && !showCommands
+    ? `↑↓ scroll ${visibleOffset + visibleLines.length}/${allLines.length}`
+    : '';
+  const showScrollHint = scrollHint && hint.length + scrollHint.length + 2 <= width;
 
   return (
-    <Box flexDirection="column" paddingX={2}>
-      {/* Scrollable messages viewport */}
-      <Box flexDirection="column">
-        {showScrollUp && (
-          <Text color="gray" dimColor>  ▲ scroll up (PageUp / Up Arrow)</Text>
-        )}
-
-        {messages.length > 0 && (
-          visibleLines.map((line, idx) => renderLine(line, idx))
-        )}
-
-        {showScrollDown && (
-          <Text color="gray" dimColor>  ▼ scroll down (PageDown / Down Arrow)</Text>
-        )}
+    <Box flexDirection="column" paddingX={2} height={isLanding ? undefined : height} flexShrink={0}>
+      {/* Messages grow so the prompt stays in one place during a conversation */}
+      <Box flexGrow={isLanding ? 0 : 1} flexShrink={0}>
+        <Box flexDirection="column" flexGrow={1}>
+          {showBio && bioLines.map((line, index) => (
+            <Box key={index} height={1} flexShrink={0}><Text>{line}</Text></Box>
+          ))}
+          {visibleLines.map((line, index) => renderLine(line, visibleOffset + index))}
+        </Box>
+        <ScrollBar total={allLines.length} visible={viewportRows} offset={visibleOffset} />
       </Box>
 
-      {/* Error display */}
-      {error && (
-        <Box marginBottom={1}>
-          <Text color="red" bold>Error: </Text>
-          <Text color="red">{error}</Text>
-        </Box>
-      )}
-
-      {/* OpenCode inspired prompt box with a left vertical accent line */}
-      <Box flexDirection="column" marginTop={1}>
-        {isLoading && (
-          <Box flexDirection="row" marginBottom={1}>
-            <Text color="gray">│ </Text>
-            <Text color="green">
-              {/* @ts-ignore */}
-              <Spinner type="dots" />
-              {" Thinking..."}
-            </Text>
+      <Box flexDirection="column" marginTop={GAP_ABOVE_PROMPT} flexShrink={0}>
+        <Box flexShrink={0}>
+          <Box flexShrink={0} width={PROMPT_PREFIX_WIDTH}>
+            <Text color={theme.accent}>┃ </Text>
+            <Text bold>Ask {'>'} </Text>
           </Box>
-        )}
-
-        {/* Input field row */}
-        <Box flexDirection="row">
-          <Box flexDirection="row" flexGrow={1}>
-            <Text color="gray">│ </Text>
-            <Text color="white" bold>Ask {'>'} </Text>
+          <Box width={inputWidth}>
             {/* @ts-ignore */}
             <TextInput
+              key={inputKey}
               value={inputValue}
               onChange={setInputValue}
               onSubmit={handleSubmit}
@@ -339,43 +247,30 @@ export const Chat: React.FC<ChatProps> = ({
           </Box>
         </Box>
 
-        {/* Shortcuts and build details help under prompt */}
-        <Box flexDirection="row" marginTop={1}>
-          <Text color="gray">│ </Text>
-          <Box flexDirection="row" justifyContent="space-between" flexGrow={1}>
-            <Text color="gray">Build · YasserYG8 · max</Text>
-            <Text color="gray">tab autocomplete · ctrl+c exit</Text>
-          </Box>
-        </Box>
-
         {showCommands && (
-          <Box flexDirection="column" marginTop={1}>
-            <Box flexDirection="row">
-              <Text color="gray">│ </Text>
-              <Text color="gray" bold>[ Available Commands ]</Text>
-            </Box>
-            {filteredCommands.map((cmd, idx) => {
-              const isSelected = idx === selectedCommandIndex;
+          <Box flexDirection="column" marginTop={1} flexShrink={0}>
+            {filteredCommands.map((command, index) => {
+              const isSelected = index === selectedCommandIndex;
               return (
-                <Box flexDirection="row" key={cmd.name}>
-                  <Text color="gray">│ </Text>
-                  <Text color={isSelected ? 'white' : 'gray'} bold={isSelected}>
-                    {isSelected ? '> ' : '  '}
-                    {cmd.name.padEnd(12)} - {cmd.desc}
+                <Box key={command.name} height={1} flexShrink={0}>
+                  <Text wrap="truncate-end">
+                    <Text color={theme.accent}>┃ </Text>
+                    <Text bold={isSelected} color={isSelected ? theme.accent : theme.muted}>
+                      {isSelected ? '> ' : '  '}
+                      {command.name.padEnd(13)}
+                      {command.desc}
+                    </Text>
                   </Text>
                 </Box>
               );
             })}
           </Box>
         )}
-      </Box>
 
-      {/* Tip section at the bottom */}
-      <Box marginTop={1}>
-        <Text color="gray">
-          <Text color="white" bold>● Tip </Text>
-          Use <Text color="white" bold>/projects</Text> or <Text color="white" bold>/skills</Text> to quickly showcase specific details about Yasser.
-        </Text>
+        <Box justifyContent="space-between" marginTop={1} flexShrink={0}>
+          <Text color={theme.muted} wrap="truncate-end">{hint}</Text>
+          {showScrollHint && <Text color={theme.muted}>{scrollHint}</Text>}
+        </Box>
       </Box>
     </Box>
   );

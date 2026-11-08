@@ -1,72 +1,57 @@
-import React, { useState } from 'react';
-import { Box, Text, useInput } from 'ink';
-import { profileData } from '../data/profile.js';
-import useStdoutDimensions from '../hooks/useStdoutDimensions.js';
+import React from 'react';
+import { Box, Text } from 'ink';
+import { profileData, Project } from '../data/profile.js';
+import { theme } from '../constants/theme.js';
+import { displayWidth, joinTerms, wrapText } from '../utils/text.js';
+import ScrollView, { Block } from '../components/ScrollView.js';
+import Spine, { SPINE_WIDTH, SpineDot } from '../components/Spine.js';
 
-export const Projects: React.FC = () => {
-  const { projects } = profileData;
-  const { columns, rows } = useStdoutDimensions();
-  const [scrollOffset, setScrollOffset] = useState(0);
+const STACK_LABEL = 'Stack ';
 
-  // Dynamically size the page based on console height to prevent terminal scrolling
-  const itemsPerPage = rows >= 36 ? 2 : 1;
-  const totalPages = Math.ceil(projects.length / itemsPerPage);
-  const currentPage = Math.floor(scrollOffset / itemsPerPage) + 1;
+interface ViewProps {
+  width: number;
+  height: number;
+}
 
-  useInput((input, key) => {
-    if (key.upArrow) {
-      setScrollOffset(prev => Math.max(0, prev - itemsPerPage));
-    }
-    if (key.downArrow) {
-      setScrollOffset(prev => Math.min(projects.length - itemsPerPage, prev + itemsPerPage));
-    }
-  });
+export const Projects: React.FC<ViewProps> = ({ width, height }) => {
+  const textWidth = Math.max(1, width - SPINE_WIDTH);
 
-  const visibleProjects = projects.slice(scrollOffset, scrollOffset + itemsPerPage);
+  const toBlock = (project: Project): Block => {
+    const note = project.note ?? '';
+    const noteFits = displayWidth(project.title) + displayWidth(note) + 2 <= textWidth;
+    const noteRows = note && !noteFits ? wrapText(note, textWidth) : [];
 
-  return (
-    <Box flexDirection="column" paddingX={2}>
-      <Box marginBottom={1} justifyContent="space-between">
-        <Text color="gray" bold>[ Projects & Contributions ]</Text>
-        <Text color="gray">
-          (Page {currentPage}/{totalPages} · Use ↑/↓ to scroll)
+    return [
+      <Box width={width} justifyContent="space-between">
+        <Text><SpineDot /><Text bold>{project.title}</Text></Text>
+        {note && noteFits && <Text color={theme.muted}>{note}</Text>}
+      </Box>,
+      ...noteRows.map((line) => <Text><Spine /><Text color={theme.muted}>{line}</Text></Text>),
+      ...wrapText(project.description, textWidth).map((line) => <Text><Spine />{line}</Text>),
+      ...wrapText(joinTerms(project.stack), Math.max(1, textWidth - STACK_LABEL.length)).map((line, index) => (
+        <Text>
+          <Spine />
+          <Text color={theme.muted}>{index === 0 ? STACK_LABEL : ' '.repeat(STACK_LABEL.length)}</Text>
+          {line}
         </Text>
-      </Box>
+      )),
+      ...(project.github ? wrapText(project.github, textWidth) : []).map((line) => (
+        <Text><Spine /><Text color={theme.accent}>{line}</Text></Text>
+      )),
+    ];
+  };
 
-      {visibleProjects.map((project, idx) => (
-        <Box
-          key={idx}
-          flexDirection="column"
-          borderStyle="single"
-          borderColor="gray"
-          padding={1}
-          marginBottom={1}
-        >
-          <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap">
-            <Text color="white" bold>[ {project.title} ]</Text>
-            <Text color="gray">{project.github}</Text>
-          </Box>
-          
-          <Box marginTop={1}>
-            <Text color="white">{project.description}</Text>
-          </Box>
+  const own = profileData.projects.filter((project) => !project.note);
+  const openSource = profileData.projects.filter((project) => project.note);
 
-          <Box flexDirection="row" flexWrap="wrap" marginTop={1}>
-            <Text color="gray" bold>Stack: </Text>
-            {project.stack.map((tech, tIdx) => (
-              <Text key={tIdx} color="white">
-                {tech}{tIdx < project.stack.length - 1 ? ' · ' : ''}
-              </Text>
-            ))}
-          </Box>
-        </Box>
-      ))}
+  const blocks: Block[] = [
+    [<Text bold>Projects</Text>],
+    ...own.map(toBlock),
+    [<Text bold>Open Source Contributions</Text>],
+    ...openSource.map(toBlock),
+  ];
 
-      <Box marginTop={1}>
-        <Text color="gray">Press [ESC] or [I] to go back to the Chat.</Text>
-      </Box>
-    </Box>
-  );
+  return <ScrollView title="Projects & Contributions" blocks={blocks} width={width} height={height} />;
 };
 
 export default Projects;

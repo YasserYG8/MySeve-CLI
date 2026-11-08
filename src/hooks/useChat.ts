@@ -5,12 +5,15 @@ import { SYSTEM_PROMPT } from '../constants/prompts.js';
 export interface ChatMessage {
   sender: 'user' | 'assistant';
   text: string;
+  isError?: boolean; // shown to the visitor, never sent to the model
 }
+
+const UNAVAILABLE_MESSAGE = "I can't reach the AI right now. Please try again in a moment. /projects, /skills, /experience and /contact still work.";
+const EMPTY_REPLY_MESSAGE = 'No answer came back. Please try again.';
 
 export const useChat = (onViewChange: (view: string) => void) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const interruptChat = useCallback(() => {
@@ -57,7 +60,7 @@ export const useChat = (onViewChange: (view: string) => void) => {
       setMessages(prev => [
         ...prev,
         { sender: 'user', text: trimmed },
-        { sender: 'assistant', text: `Unknown command: ${trimmed}. Type /help for all available commands.` }
+        { sender: 'assistant', text: `Unknown command: ${trimmed}. Type /help for all available commands.`, isError: true }
       ]);
       return;
     }
@@ -77,13 +80,12 @@ export const useChat = (onViewChange: (view: string) => void) => {
     const userMsg: ChatMessage = { sender: 'user', text: trimmed };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
-    setError(null);
 
     // Prepare message history with system prompt, filtering out empty entries
     const apiMessages = [
       { role: 'system' as const, content: SYSTEM_PROMPT },
       ...[...messages, userMsg]
-        .filter(m => m.text && m.text.trim() !== '')
+        .filter(m => !m.isError && m.text && m.text.trim() !== '')
         .map(m => ({
           role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
           content: m.text,
@@ -93,8 +95,20 @@ export const useChat = (onViewChange: (view: string) => void) => {
     // Add empty assistant response to stream into
     setMessages((prev) => [...prev, { sender: 'assistant', text: '' }]);
 
+    const updateLastAssistant = (update: (message: ChatMessage) => ChatMessage) => {
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last || last.sender !== 'assistant') return prev;
+        return [...prev.slice(0, -1), update(last)];
+      });
+    };
+
     try {
       let accumulatedText = '';
+      const appendText = (text: string) => {
+        accumulatedText += text;
+        updateLastAssistant((message) => ({ ...message, text: accumulatedText }));
+      };
 
       if (apiKey) {
         // Direct OpenRouter Call (local dev with .env)
@@ -118,17 +132,7 @@ export const useChat = (onViewChange: (view: string) => void) => {
         for await (const chunk of stream) {
           if (controller.signal.aborted) break;
           const text = chunk.choices[0]?.delta?.content || '';
-          if (text) {
-            accumulatedText += text;
-            setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last && last.sender === 'assistant') {
-                last.text = accumulatedText;
-              }
-              return next;
-            });
-          }
+          if (text) appendText(text);
         }
       } else {
         // Proxy call (production/npm fallback)
@@ -158,42 +162,31 @@ export const useChat = (onViewChange: (view: string) => void) => {
           if (done || controller.signal.aborted) break;
 
           const chunk = decoder.decode(value, { stream: true });
-          if (chunk) {
-            accumulatedText += chunk;
-            setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last && last.sender === 'assistant') {
-                last.text = accumulatedText;
-              }
-              return next;
-            });
-          }
+          if (chunk) appendText(chunk);
         }
+      }
+
+      if (!accumulatedText && !controller.signal.aborted) {
+        updateLastAssistant((message) => ({ ...message, text: EMPTY_REPLY_MESSAGE, isError: true }));
       }
     } catch (err: any) {
       // Handle abortion error gracefully
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('cancel')) {
-        setMessages((prev) => {
-          const next = [...prev];
-          const last = next[next.length - 1];
-          if (last && last.sender === 'assistant') {
-            last.text = last.text ? `${last.text} ... [Interrupted]` : '... [Interrupted]';
-          }
-          return next;
-        });
+        updateLastAssistant((message) => ({
+          ...message,
+          text: message.text ? `${message.text} ... [Interrupted]` : '... [Interrupted]',
+        }));
         return;
       }
 
-      setError(err?.message || 'Failed to stream response from AI');
-      // Update last message with error info
+      // Visitors get a clear next step. A developer with a key gets the real error.
+      const errorText = apiKey ? `Error: ${err?.message || 'Failed to fetch response.'}` : UNAVAILABLE_MESSAGE;
       setMessages((prev) => {
-        const next = [...prev];
-        const last = next[next.length - 1];
+        const last = prev[prev.length - 1];
         if (last && last.sender === 'assistant' && last.text === '') {
-          last.text = `Error: ${err?.message || 'Failed to fetch response.'}`;
+          return [...prev.slice(0, -1), { ...last, text: errorText, isError: true }];
         }
-        return next;
+        return [...prev, { sender: 'assistant', text: errorText, isError: true }];
       });
     } finally {
       if (abortControllerRef.current === controller) {
@@ -206,7 +199,6 @@ export const useChat = (onViewChange: (view: string) => void) => {
   return {
     messages,
     isLoading,
-    error,
     sendMessage,
     interruptChat,
     clearChat: () => setMessages([]),

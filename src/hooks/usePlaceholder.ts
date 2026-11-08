@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 const PLACEHOLDERS = [
-  "Ask me about BarberGo, Yasser's booking platform...",
+  "Ask me about Specter, Yasser's live logs CLI in Go...",
   "Try: what's his DevOps stack?",
   "Yasser is probably pushing to GitHub right now 👀",
   "Ask about his internship at Dream Tek Consulting...",

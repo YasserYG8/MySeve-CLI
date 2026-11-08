@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Box, useInput, useApp } from 'ink';
-import Header from './components/Header.js';
+import Header, { getHeaderHeight, LOGO_WIDTH } from './components/Header.js';
+import ShortcutsBar from './components/ShortcutsBar.js';
+import { SCROLL_GUTTER } from './components/ScrollBar.js';
 import Chat from './views/Chat.js';
 import Projects from './views/Projects.js';
 import Skills from './views/Skills.js';
@@ -10,6 +12,11 @@ import Help from './views/Help.js';
 import useChat from './hooks/useChat.js';
 import useStdoutDimensions from './hooks/useStdoutDimensions.js';
 
+const MAX_WIDTH = 80;
+const MIN_ROWS_FOR_LOGO = 30;
+const MIN_ROWS_FOR_LOGO_ON_LANDING = 22;
+const BAR_ROWS = 2; // one gap, one row
+
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<string>('chat');
   const { exit } = useApp();
@@ -18,7 +25,7 @@ export const App: React.FC = () => {
     setActiveView(view);
   };
 
-  const { messages, isLoading, error, sendMessage, interruptChat } = useChat(handleViewChange);
+  const { messages, isLoading, sendMessage, interruptChat } = useChat(handleViewChange);
 
   // Global keybindings
   useInput((input, key) => {
@@ -47,38 +54,46 @@ export const App: React.FC = () => {
       }
     }
   });
-  return (
-    <Box
-      flexDirection="column"
-      width={columns}
-      height={rows - 1}
-      alignItems="center"
-      justifyContent="center"
-    >
-      {/* Centered container mimicking a div */}
-      <Box
-        flexDirection="column"
-        width={Math.min(80, columns - 4)}
-      >
-        <Header />
 
-        {/* Middle Content */}
-        <Box flexDirection="column">
+  // The first screen keeps the logo on small terminals. After that, the content needs the rows.
+  const isLanding = activeView === 'chat' && messages.length === 0;
+  const frameWidth = Math.max(20, Math.min(MAX_WIDTH, columns - 4));
+  const innerWidth = frameWidth - 4;
+  const minRowsForLogo = isLanding ? MIN_ROWS_FOR_LOGO_ON_LANDING : MIN_ROWS_FOR_LOGO;
+  const compact = frameWidth < LOGO_WIDTH || rows < minRowsForLogo;
+  const totalRows = rows - 1;
+  const contentHeight = Math.max(3, totalRows - getHeaderHeight(frameWidth, compact) - BAR_ROWS);
+  const viewProps = { width: innerWidth - SCROLL_GUTTER, height: contentHeight };
+
+  return (
+    <Box flexDirection="column" width={columns} height={totalRows} alignItems="center" overflow="hidden">
+      <Box flexDirection="column" width={frameWidth} height={totalRows}>
+        <Box
+          flexDirection="column"
+          flexGrow={1}
+          justifyContent={isLanding ? 'center' : 'flex-start'}
+          overflow="hidden"
+        >
+          <Header width={frameWidth} compact={compact} />
+
           {activeView === 'chat' && (
             <Chat
               messages={messages}
               isLoading={isLoading}
-              error={error}
               onSendMessage={sendMessage}
               onInterrupt={interruptChat}
+              width={innerWidth}
+              height={contentHeight}
             />
           )}
-          {activeView === 'projects' && <Projects />}
-          {activeView === 'skills' && <Skills />}
-          {activeView === 'experience' && <Experience />}
-          {activeView === 'contact' && <Contact />}
-          {activeView === 'help' && <Help />}
+          {activeView === 'projects' && <Projects {...viewProps} />}
+          {activeView === 'skills' && <Skills {...viewProps} />}
+          {activeView === 'experience' && <Experience {...viewProps} />}
+          {activeView === 'contact' && <Contact {...viewProps} />}
+          {activeView === 'help' && <Help {...viewProps} />}
         </Box>
+
+        <ShortcutsBar activeView={activeView} width={innerWidth} />
       </Box>
     </Box>
   );
