@@ -2,6 +2,8 @@
   "name": "yassergombra",
   "version": "1.0.5",
   "description": "Interactive Terminal CV of Yasser Gombra",
+  "license": "MIT",
+  "author": "Yasser Gombra (https://yassergombra.com)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/YasserYG8/MySeve-CLI.git"

@@ -1,66 +1,102 @@
-# yassergombra - Terminal CV
+<div align="center">
 
-An interactive Terminal CV CLI for Yasser Gombra built using Ink, React, TypeScript, and the OpenRouter API.
+# yassergombra
 
-## Features
+**My CV, in your terminal. Ask it anything — it answers as me.**
 
-- **AI Chat Agent**: Streaming responses answering details about Yasser Gombra using the auto-routing free model (`openrouter/free` via OpenRouter).
-- **Dynamic Views**:
-  - **[P] Projects**: Project cards with details, GitHub links, and tech stacks.
-  - **[S] Skills**: Grouped skills categorized by domain.
-  - **[E] Experience**: Detailed timeline of professional and academic experience.
-  - **[C] Contact**: Direct communication options.
-  - **[H] Help**: Instruction panel.
-- **Slash Commands**: Run `/about`, `/hire`, `/projects`, `/skills`, `/experience`, `/contact`, `/help`, or `/clear` inside the chat.
-- **Responsive Layout**: Adjusts UI component boundaries automatically to terminal size.
+[![npm version](https://img.shields.io/npm/v/yassergombra?color=3b96df&label=npm)](https://www.npmjs.com/package/yassergombra)
+[![npm downloads](https://img.shields.io/npm/dm/yassergombra?color=3b96df)](https://www.npmjs.com/package/yassergombra)
+[![CI](https://github.com/YasserYG8/MySeve-CLI/actions/workflows/ci.yml/badge.svg)](https://github.com/YasserYG8/MySeve-CLI/actions/workflows/ci.yml)
+[![node](https://img.shields.io/node/v/yassergombra?color=3b96df)](https://nodejs.org)
+[![license](https://img.shields.io/badge/license-MIT-3b96df)](LICENSE)
 
-## Setup
+<img src="https://raw.githubusercontent.com/YasserYG8/MySeve-CLI/main/assets/screenshot.png" alt="The yassergombra terminal CV: a big pixel YASSER logo, a short profile, and a chat prompt" width="820">
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/YasserYG8/MySeve-CLI.git
-   cd MySeve-CLI
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Configure API Key**:
-   Create a `.env` file from the template and fill in your OpenRouter API Key:
-   ```bash
-   cp .env.example .env
-   ```
-   Add your key:
-   ```env
-   OPENROUTER_API_KEY=your-openrouter-api-key
-   ```
-
-4. **Build the CLI**:
-   ```bash
-   npm run build
-   ```
-
-5. **Run the CLI**:
-   ```bash
-   npm start
-   ```
-
-## Local Development
-
-To run with auto-compiling:
 ```bash
-npm run dev
-```
-And in another terminal window, run:
-```bash
-npm start
+npx yassergombra
 ```
 
-## How to Publish
+No install, no sign-up. You only need Node.js 18 or newer.
 
-Publishing is done by GitHub Actions (`.github/workflows/publish.yml`) when a version tag is pushed:
+</div>
+
+---
+
+## What you can do
+
+- **Chat with me.** Ask about my projects, my stack or my experience. The AI answers in the first person, as me, and streams the reply live.
+- **`/about`** — I introduce myself: who I am, what I study, what I love building, and what I'm looking for.
+- **`/hire`** — Send me a job offer straight from the terminal. Answer in your own words ("hi, I'm Sarah from Acme, sarah@acme.com"); the AI fills the form, shows you a preview, and the message lands in my inbox.
+- **Browse my CV** — projects, skills, experience and contact, each on its own screen.
+- **Works in any terminal.** The layout adapts to the window size, and the colors follow your terminal theme, light or dark.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `/about` | I introduce myself (AI) |
+| `/hire` | Send me a job offer by email |
+| `/projects` | My projects, with stack and links |
+| `/skills` | My skills, grouped by domain |
+| `/experience` | Internships and education |
+| `/contact` | Email, GitHub, LinkedIn and more |
+| `/help` | All commands and keys |
+| `/clear` | Clear the chat |
+
+## Keys
+
+| In the chat | |
+|---|---|
+| `Enter` | Send |
+| `Tab` | Fill in the suggestion, or complete a command |
+| `/` | Open the command menu |
+| `↑` `↓` | Scroll the chat, or choose a command |
+| `Esc` | Stop an answer, or clear your text |
+| `Ctrl+C` | Quit |
+
+On the other screens: `P` `S` `E` `C` `H` open Projects, Skills, Experience, Contact and Help, `Esc` or `I` goes back to the chat, and `Q` quits.
+
+## How it works
+
+```
+ your terminal                         Vercel Edge                OpenRouter
+┌──────────────────────┐   POST    ┌──────────────────┐        ┌──────────────┐
+│ npx yassergombra     │ ────────▶ │ proxy/api/chat   │ ─────▶ │ free LLM     │
+│ Ink + React + TS     │ ◀──────── │ holds the API key│ ◀───── │              │
+└──────────────────────┘  text     └──────────────────┘  SSE   └──────────────┘
+           │
+           │ /hire
+           ▼
+     FormSubmit ──▶ my inbox
+```
+
+- The CLI is built with **[Ink](https://github.com/vadimdemedes/ink)** (React for the terminal) and **TypeScript**.
+- The AI runs on free models through **[OpenRouter](https://openrouter.ai)**. A small **Vercel Edge** proxy keeps the API key on the server, so the npm package has no secrets.
+- `/hire` sends the message with **[FormSubmit](https://formsubmit.co)**, so it needs no backend of its own.
+- Every screen counts its own rows and wraps text in code, so the app never gets taller than your terminal.
+- New versions are published to npm by **GitHub Actions** with npm trusted publishing, with no npm token stored anywhere.
+
+## Run it locally
+
+```bash
+git clone https://github.com/YasserYG8/MySeve-CLI.git
+cd MySeve-CLI
+npm install
+npm run build
+node dist/index.js
+```
+
+To run from source with auto-restart on save, use `npm run dev`. It needs [Bun](https://bun.sh).
+
+By default, the chat goes through the public proxy. To call OpenRouter directly, create a `.env` file with your own key:
+
+```bash
+cp .env.example .env   # then set OPENROUTER_API_KEY
+```
+
+## Release
+
+Publishing runs on GitHub Actions (`.github/workflows/publish.yml`) when a version tag is pushed:
 
 ```bash
 npm version patch        # or minor / major: bumps package.json and creates a vX.Y.Z tag
@@ -71,31 +107,27 @@ The workflow uses npm trusted publishing, so no npm token is stored in GitHub. O
 
 To publish by hand instead, run `npm login` and then `npm publish` (it builds first through `prepublishOnly`).
 
-Now anyone can run your CV by executing:
-   ```bash
-   npx yassergombra
-   ```
+## Deploy the proxy (Vercel)
 
-## Proxy Deployment (Vercel)
+The proxy is in `proxy/` and runs on the Vercel Edge Runtime.
 
-The TUI communicates with OpenRouter through a secure, serverless API proxy hosted on Vercel. This prevents exposing your private `OPENROUTER_API_KEY` inside the published client package.
+```bash
+cd proxy
+vercel login
+vercel env add OPENROUTER_API_KEY   # apply it to Production
+vercel --prod
+```
 
-The proxy is located in the `proxy/` directory and uses the Vercel Edge Runtime.
+The proxy then runs at `https://<your-project>.vercel.app/api/chat`. Set `CHAT_PROXY_URL` to use your own proxy.
 
-### To Deploy the Proxy:
-1. Navigate into the proxy directory:
-   ```bash
-   cd proxy
-   ```
-2. Log in and deploy using the Vercel CLI:
-   ```bash
-   vercel login
-   vercel --prod
-   ```
-3. Set the environment variable on Vercel:
-   ```bash
-   vercel env add OPENROUTER_API_KEY
-   ```
-   *(Ensure you apply it to the Production environment, and run `vercel --prod` again to activate the changes).*
+## Let's talk
 
-4. The proxy runs at `https://<your-project>.vercel.app/api/chat`.
+I'm **Yasser Gombra**, a Junior DevOps Engineer and Full-Stack Developer from Tunisia, and I'm open to work.
+
+[yassergombra.com](https://yassergombra.com) · [LinkedIn](https://linkedin.com/in/gombra-yasser-a8ab46274) · [GitHub](https://github.com/YasserYG8) · [X](https://x.com/YasserGombra) · [yasserg4e@gmail.com](mailto:yasserg4e@gmail.com)
+
+Or just run `npx yassergombra` and type `/hire`. 🚀
+
+## License
+
+[MIT](LICENSE) © Yasser Gombra

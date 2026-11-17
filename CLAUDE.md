@@ -19,8 +19,6 @@ npx tsc --noEmit        # type-check only
 
 There are no tests and no linter. Use the type-check (`npm run typecheck`) and a manual run to verify changes.
 
-The README says `npm run dev` compiles and needs `npm start` in a second terminal. This is out of date: `npm run dev` is enough.
-
 ### Publishing
 
 - CLI: run `npm version patch` (or minor/major), then `git push --follow-tags`. The `v*` tag starts `.github/workflows/publish.yml`, which checks the tag matches `package.json` and runs `npm publish` with npm trusted publishing (OIDC, no token). The trusted publisher must be set up on npmjs.com for this repo and `publish.yml`.
