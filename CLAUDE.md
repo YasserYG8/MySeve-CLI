@@ -26,7 +26,7 @@ The README says `npm run dev` compiles and needs `npm start` in a second termina
 - CLI: run `npm version patch` (or minor/major), then `git push --follow-tags`. The `v*` tag starts `.github/workflows/publish.yml`, which checks the tag matches `package.json` and runs `npm publish` with npm trusted publishing (OIDC, no token). The trusted publisher must be set up on npmjs.com for this repo and `publish.yml`.
 - `npm publish` by hand also works after `npm login`. `prepublishOnly` runs the build, so `dist/` is always fresh.
 - The `files` field limits the package to `dist/` (plus README and package.json, which npm always adds).
-- `.github/workflows/ci.yml` runs `npm ci`, the type-check, the build and `npm pack --dry-run` on Node 20 and 22 for pushes to main and for PRs.
+- `.github/workflows/ci.yml` runs `npm ci`, the type-check, the build and `npm pack --dry-run` on Node 22 and 24 for pushes to main and for PRs.
 - Proxy: run `vercel --prod` from `proxy/`. It needs `OPENROUTER_API_KEY` set on Vercel. The proxy deploys on its own, so publishing the CLI does not update it.
 
 ## Architecture
@@ -96,4 +96,4 @@ Use `src/constants/theme.ts`. Leave body text with no color, because `white` is 
 - `structure.md` is the original build prompt, not current docs. It describes the Anthropic SDK and figlet, which the app no longer uses.
 - `src/components/Message.tsx` is not imported anywhere.
 - `figlet` and `chalk` are dependencies but are not imported in `src/`.
-- `.agents/opentui-skill` holds reference docs for OpenTUI, a different TUI framework. This app uses Ink, so do not follow those docs here.
+- `.agents/opentui-skill` (local only, in `.gitignore`) holds reference docs for OpenTUI, a different TUI framework. This app uses Ink, so do not follow those docs here.
