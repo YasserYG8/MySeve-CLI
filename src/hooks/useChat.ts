@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import OpenAI from 'openai';
 import { SYSTEM_PROMPT } from '../constants/prompts.js';
+import { hasOwnApiKey, streamModel } from '../utils/ai.js';
 import { answerHire, HIRE_CANCELLED, HIRE_SENT, HireState, sendHire, startHire } from '../utils/hire.js';
 
 export interface ChatMessage {
@@ -63,29 +63,36 @@ export const useChat = (onViewChange: (view: string) => void) => {
         }
         // Any other command cancels the form and then runs below.
       } else {
-        const result = answerHire(hire, trimmed);
-        if (result.kind !== 'send') {
-          setHire(result.kind === 'next' ? result.state : null);
-          sayLocally(result.reply);
-          return;
-        }
-
-        setHire(null);
+        // Reading the answer can call the AI (for the name), so show a spinner.
         const controller = new AbortController();
         abortControllerRef.current = controller;
         setMessages((prev) => [
           ...prev,
           { sender: 'user', text: trimmed, local: true },
-          { sender: 'assistant', text: '', local: true, pending: 'Sending...' },
+          { sender: 'assistant', text: '', local: true, pending: 'Thinking...' },
         ]);
         setIsLoading(true);
+        let sending = false;
         try {
+          const result = await answerHire(hire, trimmed, controller.signal);
+          if (result.kind !== 'send') {
+            setHire(result.kind === 'next' ? result.state : null);
+            updateLastAssistant((message) => ({ ...message, text: result.reply }));
+            return;
+          }
+
+          setHire(null);
+          sending = true;
+          updateLastAssistant((message) => ({ ...message, pending: 'Sending...' }));
           await sendHire(result.data, controller.signal);
           updateLastAssistant((message) => ({ ...message, text: HIRE_SENT(result.data.email) }));
         } catch (err: any) {
-          const text = controller.signal.aborted
-            ? 'Stopped. Your message may not have been sent. Type /hire to try again.'
-            : err?.message || 'I could not send your message.';
+          let text = err?.message || 'I could not send your message.';
+          if (controller.signal.aborted) {
+            text = sending
+              ? 'Stopped. Your message may not have been sent. Type /hire to try again.'
+              : 'Stopped. Please type your answer again.';
+          }
           updateLastAssistant((message) => ({ ...message, text, isError: true }));
         } finally {
           if (abortControllerRef.current === controller) abortControllerRef.current = null;
@@ -144,8 +151,6 @@ export const useChat = (onViewChange: (view: string) => void) => {
       }
     }
 
-    const apiKey = process.env['OPENROUTER_API_KEY'];
-
     // Cancel any previous active stream
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -176,66 +181,10 @@ export const useChat = (onViewChange: (view: string) => void) => {
 
     try {
       let accumulatedText = '';
-      const appendText = (text: string) => {
-        accumulatedText += text;
+      await streamModel(apiMessages, controller.signal, (chunk) => {
+        accumulatedText += chunk;
         updateLastAssistant((message) => ({ ...message, text: accumulatedText }));
-      };
-
-      if (apiKey) {
-        // Direct OpenRouter Call (local dev with .env)
-        const openai = new OpenAI({
-          baseURL: 'https://openrouter.ai/api/v1',
-          apiKey: apiKey,
-          defaultHeaders: {
-            'HTTP-Referer': 'https://github.com/YasserYG8/MySeve-CLI',
-            'X-Title': 'Yasser Gombra Terminal CV',
-          }
-        });
-
-        const stream = await openai.chat.completions.create({
-          model: 'openrouter/free',
-          messages: apiMessages,
-          stream: true,
-        }, {
-          signal: controller.signal,
-        });
-
-        for await (const chunk of stream) {
-          if (controller.signal.aborted) break;
-          const text = chunk.choices[0]?.delta?.content || '';
-          if (text) appendText(text);
-        }
-      } else {
-        // Proxy call (production/npm fallback)
-        const proxyUrl = process.env['CHAT_PROXY_URL'] || 'https://proxyclipart.vercel.app/api/chat';
-        const response = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ messages: apiMessages }),
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(errText || `Server responded with status ${response.status}`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error('Response stream is not readable');
-        }
-
-        const decoder = new TextDecoder();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done || controller.signal.aborted) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          if (chunk) appendText(chunk);
-        }
-      }
+      });
 
       if (!accumulatedText && !controller.signal.aborted) {
         updateLastAssistant((message) => ({ ...message, text: EMPTY_REPLY_MESSAGE, isError: true }));
@@ -251,7 +200,7 @@ export const useChat = (onViewChange: (view: string) => void) => {
       }
 
       // Visitors get a clear next step. A developer with a key gets the real error.
-      const errorText = apiKey ? `Error: ${err?.message || 'Failed to fetch response.'}` : UNAVAILABLE_MESSAGE;
+      const errorText = hasOwnApiKey() ? `Error: ${err?.message || 'Failed to fetch response.'}` : UNAVAILABLE_MESSAGE;
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last && last.sender === 'assistant' && last.text === '') {

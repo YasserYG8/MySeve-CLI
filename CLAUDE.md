@@ -33,7 +33,7 @@ The README says `npm run dev` compiles and needs `npm start` in a second termina
 
 ### Chat has two backends
 
-`sendMessage` in `src/hooks/useChat.ts` picks the path at request time:
+`streamModel` in `src/utils/ai.ts` (used by `useChat` and by `/hire`) picks the path at request time:
 
 - **`OPENROUTER_API_KEY` is set** (local dev, loaded from `.env` in the current directory): calls OpenRouter directly with the `openai` SDK, model `openrouter/free`.
 - **No key** (npm users): POSTs to `CHAT_PROXY_URL`, or to the default `https://proxyclipart.vercel.app/api/chat`. `proxy/api/chat.js` holds the key and its own hardcoded model.
@@ -46,7 +46,9 @@ Things to know:
 
 ### `/hire` sends an email
 
-- `/hire` runs a small form in the chat (`src/utils/hire.ts`): name, email, company and job, message, then a y/n preview. `useChat` holds the form state and marks these messages `local`, so they are never sent to the model.
+- `/hire` runs a small form in the chat (`src/utils/hire.ts`): name, email, company and job, message, then a preview. `useChat` holds the form state and marks these messages `local`, so they never enter the chat history sent to the model.
+- Each answer is read by the model with its own JSON prompt (`extractPrompt`, `CONFIRM_PROMPT`), so visitors can answer in sentences. One answer can also fill the name and email early. At the preview, the model decides send, cancel or edit ("change my email to ...").
+- Plain answers skip the model (a bare name or email, y/n). If the model fails, times out (10 s, 20 s for the message) or returns bad JSON, the regex rules in `backupValue` run. Every value passes `checkValue`, so the email must always match the email pattern.
 - On "y", the CLI POSTs straight to FormSubmit (`https://formsubmit.co/ajax/<email>`, or `HIRE_FORM_URL`), which emails Yasser with the visitor as Reply-To. The proxy is not involved.
 - FormSubmit refuses requests with no `Referer`, so the CLI sends the website URL as the Referer. The form must be activated once, from the email FormSubmit sends after the first submission.
 - There is no rate limit on our side. FormSubmit does its own spam filtering.
