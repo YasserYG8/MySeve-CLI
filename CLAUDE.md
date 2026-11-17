@@ -17,14 +17,16 @@ node dist/index.js      # run the built CLI, as npx users get it
 npx tsc --noEmit        # type-check only
 ```
 
-There are no tests and no linter. Use the type-check and a manual run to verify changes.
+There are no tests and no linter. Use the type-check (`npm run typecheck`) and a manual run to verify changes.
 
 The README says `npm run dev` compiles and needs `npm start` in a second terminal. This is out of date: `npm run dev` is enough.
 
 ### Publishing
 
-- CLI: run `npm run build`, then `npm publish`. Nothing builds on publish, so a stale `dist/` will ship without the build step.
-- There is no `files` field or `.npmignore`, so npm publishes everything not in `.gitignore`.
+- CLI: run `npm version patch` (or minor/major), then `git push --follow-tags`. The `v*` tag starts `.github/workflows/publish.yml`, which checks the tag matches `package.json` and runs `npm publish` with npm trusted publishing (OIDC, no token). The trusted publisher must be set up on npmjs.com for this repo and `publish.yml`.
+- `npm publish` by hand also works after `npm login`. `prepublishOnly` runs the build, so `dist/` is always fresh.
+- The `files` field limits the package to `dist/` (plus README and package.json, which npm always adds).
+- `.github/workflows/ci.yml` runs `npm ci`, the type-check, the build and `npm pack --dry-run` on Node 20 and 22 for pushes to main and for PRs.
 - Proxy: run `vercel --prod` from `proxy/`. It needs `OPENROUTER_API_KEY` set on Vercel. The proxy deploys on its own, so publishing the CLI does not update it.
 
 ## Architecture

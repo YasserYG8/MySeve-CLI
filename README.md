@@ -60,19 +60,18 @@ npm start
 
 ## How to Publish
 
-1. Ensure the code compiles successfully:
-   ```bash
-   npm run build
-   ```
-2. Login to your NPM account:
-   ```bash
-   npm login
-   ```
-3. Publish to npm:
-   ```bash
-   npm publish
-   ```
-4. Now anyone can run your CV by executing:
+Publishing is done by GitHub Actions (`.github/workflows/publish.yml`) when a version tag is pushed:
+
+```bash
+npm version patch        # or minor / major: bumps package.json and creates a vX.Y.Z tag
+git push --follow-tags   # the tag starts the publish workflow
+```
+
+The workflow uses npm trusted publishing, so no npm token is stored in GitHub. One-time setup on npmjs.com: package **Settings → Trusted Publisher → GitHub Actions**, with owner `YasserYG8`, repository `MySeve-CLI` and workflow file `publish.yml`.
+
+To publish by hand instead, run `npm login` and then `npm publish` (it builds first through `prepublishOnly`).
+
+Now anyone can run your CV by executing:
    ```bash
    npx yassergombra
    ```
