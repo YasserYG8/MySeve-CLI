@@ -9,7 +9,8 @@ const LABEL_WIDTH = 13;
 
 const CHAT_KEYS = [
   ['enter', 'Send your message'],
-  ['tab', 'Open or complete a command'],
+  ['tab', 'Fill in the suggestion, or complete a command'],
+  ['/', 'Open the command menu'],
   ['↑ ↓', 'Scroll the chat, or choose a command'],
   ['esc', 'Stop an answer, or clear your text'],
   ['ctrl+c', 'Quit'],

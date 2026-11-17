@@ -44,6 +44,14 @@ Things to know:
 - The client sends the system prompt in `messages`. The proxy does not add it.
 - The proxy turns OpenRouter's SSE stream into plain text chunks, so the client reads raw text on this path. It also removes a leading `user safety: safe` line that the model can emit.
 
+### `/hire` sends an email
+
+- `/hire` runs a small form in the chat (`src/utils/hire.ts`): name, email, company and job, message, then a y/n preview. `useChat` holds the form state and marks these messages `local`, so they are never sent to the model.
+- On "y", the CLI POSTs straight to FormSubmit (`https://formsubmit.co/ajax/<email>`, or `HIRE_FORM_URL`), which emails Yasser with the visitor as Reply-To. The proxy is not involved.
+- FormSubmit refuses requests with no `Referer`, so the CLI sends the website URL as the Referer. The form must be activated once, from the email FormSubmit sends after the first submission.
+- There is no rate limit on our side. FormSubmit does its own spam filtering.
+- While the form runs, any slash command cancels it, and `/cancel` only cancels it. `/cancel` is not in `COMMANDS`.
+
 ### Facts about Yasser live in two places
 
 - `src/data/profile.ts`: used by the static views and the header.
@@ -61,7 +69,7 @@ To add or change a command, update both:
 ### Views and input
 
 - `src/App.tsx` holds `activeView` and passes a view-change callback into `useChat`, so slash commands can switch views.
-- Letter hotkeys (P, S, E, C, H, I, Q) in `App.tsx` work only outside the chat view, because in chat the letters go to the text input. In chat, ESC stops a running response or clears the input, and Tab opens or completes a command.
+- Letter hotkeys (P, S, E, C, H, I, Q) in `App.tsx` work only outside the chat view, because in chat the letters go to the text input. In chat, ESC stops a running response or clears the input, and Tab fills in the rotating suggestion (from `src/hooks/usePlaceholder.ts`) when the input is empty, or completes a command. Typing `/` opens the command menu.
 - `ShortcutsBar` shows the keys that work on the current screen.
 
 ### Every screen counts its own rows

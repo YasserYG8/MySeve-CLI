@@ -1,4 +1,6 @@
 export const COMMANDS = [
+  { name: '/about', desc: 'Who I Am' },
+  { name: '/hire', desc: 'Send Me a Job Offer' },
   { name: '/projects', desc: 'Show Projects' },
   { name: '/skills', desc: 'Show Skills' },
   { name: '/experience', desc: 'Show Experience' },

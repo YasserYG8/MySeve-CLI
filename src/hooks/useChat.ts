@@ -1,12 +1,18 @@
 import { useState, useCallback, useRef } from 'react';
 import OpenAI from 'openai';
 import { SYSTEM_PROMPT } from '../constants/prompts.js';
+import { answerHire, HIRE_CANCELLED, HIRE_SENT, HireState, sendHire, startHire } from '../utils/hire.js';
 
 export interface ChatMessage {
   sender: 'user' | 'assistant';
   text: string;
   isError?: boolean; // shown to the visitor, never sent to the model
+  prompt?: string; // sent to the model in place of `text` (used by /about)
+  local?: boolean; // part of the /hire flow: shown, but never sent to the model
+  pending?: string; // spinner text while this message is empty
 }
+
+const ABOUT_PROMPT = 'Introduce yourself to me in a short, warm message, in the first person. Say who you are, your age, where you are from, what you study, what you are passionate about, what you want to do next, and what you are looking for right now. Use only facts you know.';
 
 const UNAVAILABLE_MESSAGE = "I can't reach the AI right now. Please try again in a moment. /projects, /skills, /experience and /contact still work.";
 const EMPTY_REPLY_MESSAGE = 'No answer came back. Please try again.';
@@ -14,7 +20,16 @@ const EMPTY_REPLY_MESSAGE = 'No answer came back. Please try again.';
 export const useChat = (onViewChange: (view: string) => void) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hire, setHire] = useState<HireState | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const updateLastAssistant = useCallback((update: (message: ChatMessage) => ChatMessage) => {
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (!last || last.sender !== 'assistant') return prev;
+      return [...prev.slice(0, -1), update(last)];
+    });
+  }, []);
 
   const interruptChat = useCallback(() => {
     if (abortControllerRef.current) {
@@ -27,6 +42,58 @@ export const useChat = (onViewChange: (view: string) => void) => {
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    let modelPrompt: string | undefined;
+
+    // A local exchange: the visitor's line and my reply, kept away from the model.
+    const sayLocally = (reply: string, isError = false) => {
+      setMessages((prev) => [
+        ...prev,
+        { sender: 'user', text: trimmed, local: true },
+        { sender: 'assistant', text: reply, local: true, isError },
+      ]);
+    };
+
+    // While /hire is running, answers go to the form. A slash command stops it.
+    if (hire) {
+      if (trimmed.startsWith('/')) {
+        setHire(null);
+        if (trimmed.toLowerCase() === '/cancel') {
+          sayLocally(HIRE_CANCELLED);
+          return;
+        }
+        // Any other command cancels the form and then runs below.
+      } else {
+        const result = answerHire(hire, trimmed);
+        if (result.kind !== 'send') {
+          setHire(result.kind === 'next' ? result.state : null);
+          sayLocally(result.reply);
+          return;
+        }
+
+        setHire(null);
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        setMessages((prev) => [
+          ...prev,
+          { sender: 'user', text: trimmed, local: true },
+          { sender: 'assistant', text: '', local: true, pending: 'Sending...' },
+        ]);
+        setIsLoading(true);
+        try {
+          await sendHire(result.data, controller.signal);
+          updateLastAssistant((message) => ({ ...message, text: HIRE_SENT(result.data.email) }));
+        } catch (err: any) {
+          const text = controller.signal.aborted
+            ? 'Stopped. Your message may not have been sent. Type /hire to try again.'
+            : err?.message || 'I could not send your message.';
+          updateLastAssistant((message) => ({ ...message, text, isError: true }));
+        } finally {
+          if (abortControllerRef.current === controller) abortControllerRef.current = null;
+          setIsLoading(false);
+        }
+        return;
+      }
+    }
 
     // Handle slash commands
     if (trimmed.startsWith('/')) {
@@ -55,14 +122,26 @@ export const useChat = (onViewChange: (view: string) => void) => {
         onViewChange('help');
         return;
       }
-      
-      // Unknown command
-      setMessages(prev => [
-        ...prev,
-        { sender: 'user', text: trimmed },
-        { sender: 'assistant', text: `Unknown command: ${trimmed}. Type /help for all available commands.`, isError: true }
-      ]);
-      return;
+
+      if (command === '/hire') {
+        const { state, reply } = startHire();
+        setHire(state);
+        sayLocally(reply);
+        return;
+      }
+
+      if (command === '/about') {
+        // Falls through to the AI request below, with a hidden prompt.
+        modelPrompt = ABOUT_PROMPT;
+      } else {
+        // Unknown command
+        setMessages(prev => [
+          ...prev,
+          { sender: 'user', text: trimmed },
+          { sender: 'assistant', text: `Unknown command: ${trimmed}. Type /help for all available commands.`, isError: true }
+        ]);
+        return;
+      }
     }
 
     const apiKey = process.env['OPENROUTER_API_KEY'];
@@ -77,7 +156,7 @@ export const useChat = (onViewChange: (view: string) => void) => {
     abortControllerRef.current = controller;
 
     // Add user message
-    const userMsg: ChatMessage = { sender: 'user', text: trimmed };
+    const userMsg: ChatMessage = { sender: 'user', text: trimmed, prompt: modelPrompt };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
@@ -85,23 +164,15 @@ export const useChat = (onViewChange: (view: string) => void) => {
     const apiMessages = [
       { role: 'system' as const, content: SYSTEM_PROMPT },
       ...[...messages, userMsg]
-        .filter(m => !m.isError && m.text && m.text.trim() !== '')
+        .filter(m => !m.isError && !m.local && m.text && m.text.trim() !== '')
         .map(m => ({
           role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
-          content: m.text,
+          content: m.prompt ?? m.text,
         }))
     ];
 
     // Add empty assistant response to stream into
     setMessages((prev) => [...prev, { sender: 'assistant', text: '' }]);
-
-    const updateLastAssistant = (update: (message: ChatMessage) => ChatMessage) => {
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (!last || last.sender !== 'assistant') return prev;
-        return [...prev.slice(0, -1), update(last)];
-      });
-    };
 
     try {
       let accumulatedText = '';
@@ -194,11 +265,12 @@ export const useChat = (onViewChange: (view: string) => void) => {
       }
       setIsLoading(false);
     }
-  }, [messages, onViewChange]);
+  }, [messages, hire, onViewChange, updateLastAssistant]);
 
   return {
     messages,
     isLoading,
+    isHiring: hire !== null,
     sendMessage,
     interruptChat,
     clearChat: () => setMessages([]),

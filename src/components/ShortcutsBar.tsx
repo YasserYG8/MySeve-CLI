@@ -32,7 +32,7 @@ export const ShortcutsBar: React.FC<ShortcutsBarProps> = ({ activeView, width })
 
   let bar: React.ReactNode;
   if (barWidth > width) {
-    bar = <Text color={theme.muted}>{inChat ? 'tab commands' : 'esc chat · h help · q quit'}</Text>;
+    bar = <Text color={theme.muted}>{inChat ? '/ commands' : 'esc chat · h help · q quit'}</Text>;
   } else if (inChat) {
     bar = <Text color={theme.muted}>{CHAT_LINKS.join('  ')}</Text>;
   } else {

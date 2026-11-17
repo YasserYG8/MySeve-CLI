@@ -94,7 +94,7 @@ Turns source code into an interactive call graph using Tree-sitter WASM.
 
 ## ℹ️ Personal & Status Information
 
-* **Status:** Open to work (looking for an **Internship**)
+* **Status:** Open to work (looking for a **Job**)
 * **Driver's License:** Category B
 * **Languages:** Arabic (Native), French (Intermediate), English (Intermediate)
-* **Interests:** Vibe Coding & AI Tools, Football (Olympique Ghomrassen), Video Games
+* **Interests:** Vibe Coding & AI Tools, Video Games

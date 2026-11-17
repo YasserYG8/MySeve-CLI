@@ -164,7 +164,7 @@ export const profileData: ProfileData = {
     x: "https://x.com/YasserGombra",
     website: "https://yassergombra.com",
     location: "Ghomrassen, Tataouine / Hammam Lif, Ben Arous, Tunisia (open to relocation)",
-    status: "Open to work — Looking for an internship",
+    status: "Open to work — Looking for a job",
     license: "Category B",
     languages: ["Arabic (Native)", "French (Intermediate)", "English (Intermediate)"]
   }

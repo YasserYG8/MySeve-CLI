@@ -6,13 +6,13 @@ import { ChatMessage } from '../hooks/useChat.js';
 import { usePlaceholder } from '../hooks/usePlaceholder.js';
 import { COMMANDS } from '../constants/commands.js';
 import { theme } from '../constants/theme.js';
-import { profileData } from '../data/profile.js';
 import ScrollBar, { SCROLL_GUTTER } from '../components/ScrollBar.js';
 import { balanceBold, displayWidth, formatReply, wrapText } from '../utils/text.js';
 
 interface ChatProps {
   messages: ChatMessage[];
   isLoading: boolean;
+  isHiring: boolean; // the /hire form is waiting for an answer
   onSendMessage: (text: string) => void;
   onInterrupt: () => void;
   width: number;
@@ -27,7 +27,7 @@ interface ChatLine {
   text: string;
 }
 
-const LABEL_WIDTH = 5;
+const LABEL_WIDTH = 8; // "YASSER" plus two spaces
 const PROMPT_PREFIX_WIDTH = 8; // "┃ Ask > "
 const GAP_ABOVE_PROMPT = 1;
 const HINT_ROWS = 2; // one gap, one row of hints
@@ -44,7 +44,7 @@ function toChatLines(messages: ChatMessage[], isLoading: boolean, width: number)
     if (lines.length > 0) lines.push({ kind: 'blank', isFirst: false, text: '' });
 
     if (isWaiting) {
-      lines.push({ kind: 'thinking', isFirst: true, text: '' });
+      lines.push({ kind: 'thinking', isFirst: true, text: message.pending ?? 'Thinking...' });
       return;
     }
 
@@ -68,9 +68,9 @@ const renderInline = (text: string): React.ReactNode[] =>
 
 const LABELS: Partial<Record<LineKind, { text: string; color: string }>> = {
   user: { text: 'you', color: theme.accent },
-  assistant: { text: 'AI', color: theme.good },
-  thinking: { text: 'AI', color: theme.good },
-  error: { text: 'AI', color: theme.bad },
+  assistant: { text: 'YASSER', color: theme.good },
+  thinking: { text: 'YASSER', color: theme.good },
+  error: { text: 'YASSER', color: theme.bad },
 };
 
 const renderLine = (line: ChatLine, key: number) => {
@@ -88,7 +88,7 @@ const renderLine = (line: ChatLine, key: number) => {
           <Text color={theme.muted}>
             {/* @ts-ignore */}
             <Spinner type="dots" />
-            {' Thinking...'}
+            {` ${line.text}`}
           </Text>
         )}
       </Text>
@@ -99,6 +99,7 @@ const renderLine = (line: ChatLine, key: number) => {
 export const Chat: React.FC<ChatProps> = ({
   messages,
   isLoading,
+  isHiring,
   onSendMessage,
   onInterrupt,
   width,
@@ -109,7 +110,8 @@ export const Chat: React.FC<ChatProps> = ({
   // key is needed each time the code (not the keyboard) changes the text.
   const [inputKey, setInputKey] = useState(0);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
-  const placeholder = usePlaceholder();
+  const suggestion = usePlaceholder();
+  const placeholder = isHiring ? 'Type your answer... (/cancel to stop)' : suggestion.hint;
 
   const setInputFromCode = (value: string) => {
     setInputValue(value);
@@ -132,9 +134,6 @@ export const Chat: React.FC<ChatProps> = ({
   const [scrollOffset, setScrollOffset] = useState(maxScrollOffset);
   const visibleOffset = Math.min(scrollOffset, maxScrollOffset);
   const visibleLines = allLines.slice(visibleOffset, visibleOffset + viewportRows);
-
-  const bioLines = wrapText(profileData.bio, width);
-  const showBio = isLanding && bioLines.length <= viewportRows;
 
   useEffect(() => {
     setSelectedCommandIndex(0);
@@ -178,7 +177,7 @@ export const Chat: React.FC<ChatProps> = ({
     }
     if (key.tab) {
       if (inputValue === '') {
-        setInputFromCode('/');
+        if (!isHiring) setInputFromCode(suggestion.fill);
       } else if (showCommands) {
         const index = Math.min(selectedCommandIndex, filteredCommands.length - 1);
         setInputFromCode(filteredCommands[index].name);
@@ -206,7 +205,10 @@ export const Chat: React.FC<ChatProps> = ({
     }
   });
 
-  let hint = width >= 40 ? 'enter send · tab commands · ctrl+c quit' : 'enter send · tab commands';
+  let hint = inputValue
+    ? (width >= 37 ? 'enter send · esc clear · ctrl+c quit' : 'enter send · esc clear')
+    : (width >= 38 ? 'enter send · tab autofill · / commands' : 'tab autofill · / commands');
+  if (isHiring && !inputValue) hint = 'enter send · /cancel stop';
   if (showCommands) hint = width >= 36 ? '↑↓ choose · tab complete · enter run' : 'tab complete · enter run';
   if (isLoading) hint = 'esc stop · ctrl+c quit';
 
@@ -220,9 +222,6 @@ export const Chat: React.FC<ChatProps> = ({
       {/* Messages grow so the prompt stays in one place during a conversation */}
       <Box flexGrow={isLanding ? 0 : 1} flexShrink={0}>
         <Box flexDirection="column" flexGrow={1}>
-          {showBio && bioLines.map((line, index) => (
-            <Box key={index} height={1} flexShrink={0}><Text>{line}</Text></Box>
-          ))}
           {visibleLines.map((line, index) => renderLine(line, visibleOffset + index))}
         </Box>
         <ScrollBar total={allLines.length} visible={viewportRows} offset={visibleOffset} />

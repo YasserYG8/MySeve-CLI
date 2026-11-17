@@ -25,7 +25,7 @@ export const App: React.FC = () => {
     setActiveView(view);
   };
 
-  const { messages, isLoading, sendMessage, interruptChat } = useChat(handleViewChange);
+  const { messages, isLoading, isHiring, sendMessage, interruptChat } = useChat(handleViewChange);
 
   // Global keybindings
   useInput((input, key) => {
@@ -80,6 +80,7 @@ export const App: React.FC = () => {
             <Chat
               messages={messages}
               isLoading={isLoading}
+              isHiring={isHiring}
               onSendMessage={sendMessage}
               onInterrupt={interruptChat}
               width={innerWidth}

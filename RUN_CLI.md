@@ -36,6 +36,8 @@ npx yassergombra
 │  yasser@cv:~$ /help                                                    │
 │                                                                        │
 │  Available Commands:                                                   │
+│   • /about       - Yasser introduces himself (AI)                      │
+│   • /hire        - Send Yasser a job offer by email                    │
 │   • /projects    - View full-stack and DevOps projects                 │
 │   • /skills      - Show technical skills breakdown                     │
 │   • /experience  - View professional & academic timeline                │
@@ -59,7 +61,7 @@ npx yassergombra
 
 - **🤖 AI Chat Integration**: Chat with Yasser's personal AI agent in real-time. Ask questions like:
   - *"What is Yasser's tech stack?"*
-  - *"Is Yasser open to internships?"*
+  - *"Is Yasser looking for a job?"*
   - *"Tell me about the Specter project."*
 - **📂 Interactive Navigation**: Switch between views instantly using hotkeys:
   - Press `P` for **Projects**

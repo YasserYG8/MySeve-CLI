@@ -11,7 +11,7 @@ An interactive Terminal CV CLI for Yasser Gombra built using Ink, React, TypeScr
   - **[E] Experience**: Detailed timeline of professional and academic experience.
   - **[C] Contact**: Direct communication options.
   - **[H] Help**: Instruction panel.
-- **Slash Commands**: Run `/projects`, `/skills`, `/experience`, `/contact`, `/help`, or `/clear` inside the chat.
+- **Slash Commands**: Run `/about`, `/hire`, `/projects`, `/skills`, `/experience`, `/contact`, `/help`, or `/clear` inside the chat.
 - **Responsive Layout**: Adjusts UI component boundaries automatically to terminal size.
 
 ## Setup
