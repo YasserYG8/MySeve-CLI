@@ -7,4 +7,5 @@ export const COMMANDS = [
   { name: '/contact', desc: 'Show Contact Info' },
   { name: '/help', desc: 'Show Help Screen' },
   { name: '/clear', desc: 'Clear Chat History' },
+  { name: '/exit', desc: 'Quit' },
 ];

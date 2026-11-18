@@ -34,7 +34,7 @@ No install, no sign-up. You only need Node.js 18 or newer.
 
 | Command | What it does |
 |---|---|
-| `/about` | I introduce myself (AI) |
+| `/about` | Who I am, what I've built, and what I want next |
 | `/hire` | Send me a job offer by email |
 | `/projects` | My projects, with stack and links |
 | `/skills` | My skills, grouped by domain |
@@ -42,6 +42,7 @@ No install, no sign-up. You only need Node.js 18 or newer.
 | `/contact` | Email, GitHub, LinkedIn and more |
 | `/help` | All commands and keys |
 | `/clear` | Clear the chat |
+| `/exit` | Quit |
 
 ## Keys
 

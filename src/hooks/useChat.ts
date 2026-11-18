@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { SYSTEM_PROMPT } from '../constants/prompts.js';
+import { ABOUT_TEXT } from '../constants/about.js';
 import { hasOwnApiKey, streamModel } from '../utils/ai.js';
 import { answerHire, HIRE_CANCELLED, HIRE_SENT, HireState, sendHire, startHire } from '../utils/hire.js';
 
@@ -7,17 +8,14 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   text: string;
   isError?: boolean; // shown to the visitor, never sent to the model
-  prompt?: string; // sent to the model in place of `text` (used by /about)
-  local?: boolean; // part of the /hire flow: shown, but never sent to the model
+  local?: boolean; // /about and /hire: shown, but never sent to the model
   pending?: string; // spinner text while this message is empty
 }
-
-const ABOUT_PROMPT = 'Introduce yourself to me in a short, warm message, in the first person. Say who you are, your age, where you are from, what you study, what you are passionate about, what you want to do next, and what you are looking for right now. Use only facts you know.';
 
 const UNAVAILABLE_MESSAGE = "I can't reach the AI right now. Please try again in a moment. /projects, /skills, /experience and /contact still work.";
 const EMPTY_REPLY_MESSAGE = 'No answer came back. Please try again.';
 
-export const useChat = (onViewChange: (view: string) => void) => {
+export const useChat = (onViewChange: (view: string) => void, onExit: () => void) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hire, setHire] = useState<HireState | null>(null);
@@ -42,7 +40,6 @@ export const useChat = (onViewChange: (view: string) => void) => {
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    let modelPrompt: string | undefined;
 
     // A local exchange: the visitor's line and my reply, kept away from the model.
     const sayLocally = (reply: string, isError = false) => {
@@ -129,6 +126,15 @@ export const useChat = (onViewChange: (view: string) => void) => {
         onViewChange('help');
         return;
       }
+      if (command === '/exit') {
+        abortControllerRef.current?.abort();
+        onExit();
+        return;
+      }
+      if (command === '/about') {
+        sayLocally(ABOUT_TEXT);
+        return;
+      }
 
       if (command === '/hire') {
         const { state, reply } = startHire();
@@ -137,18 +143,13 @@ export const useChat = (onViewChange: (view: string) => void) => {
         return;
       }
 
-      if (command === '/about') {
-        // Falls through to the AI request below, with a hidden prompt.
-        modelPrompt = ABOUT_PROMPT;
-      } else {
-        // Unknown command
-        setMessages(prev => [
-          ...prev,
-          { sender: 'user', text: trimmed },
-          { sender: 'assistant', text: `Unknown command: ${trimmed}. Type /help for all available commands.`, isError: true }
-        ]);
-        return;
-      }
+      // Unknown command
+      setMessages(prev => [
+        ...prev,
+        { sender: 'user', text: trimmed },
+        { sender: 'assistant', text: `Unknown command: ${trimmed}. Type /help for all available commands.`, isError: true }
+      ]);
+      return;
     }
 
     // Cancel any previous active stream
@@ -161,7 +162,7 @@ export const useChat = (onViewChange: (view: string) => void) => {
     abortControllerRef.current = controller;
 
     // Add user message
-    const userMsg: ChatMessage = { sender: 'user', text: trimmed, prompt: modelPrompt };
+    const userMsg: ChatMessage = { sender: 'user', text: trimmed };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
@@ -172,7 +173,7 @@ export const useChat = (onViewChange: (view: string) => void) => {
         .filter(m => !m.isError && !m.local && m.text && m.text.trim() !== '')
         .map(m => ({
           role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
-          content: m.prompt ?? m.text,
+          content: m.text,
         }))
     ];
 
@@ -214,7 +215,7 @@ export const useChat = (onViewChange: (view: string) => void) => {
       }
       setIsLoading(false);
     }
-  }, [messages, hire, onViewChange, updateLastAssistant]);
+  }, [messages, hire, onViewChange, onExit, updateLastAssistant]);
 
   return {
     messages,

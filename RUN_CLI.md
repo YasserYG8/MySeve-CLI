@@ -36,13 +36,14 @@ npx yassergombra
 │  yasser@cv:~$ /help                                                    │
 │                                                                        │
 │  Available Commands:                                                   │
-│   • /about       - Yasser introduces himself (AI)                      │
+│   • /about       - Yasser introduces himself                           │
 │   • /hire        - Send Yasser a job offer by email                    │
 │   • /projects    - View full-stack and DevOps projects                 │
 │   • /skills      - Show technical skills breakdown                     │
 │   • /experience  - View professional & academic timeline                │
 │   • /contact     - Get contact details (Email, GitHub, LinkedIn)        │
 │   • /clear       - Clear chat window history                           │
+│   • /exit        - Quit the CV                                         │
 │                                                                        │
 │  AI > Ask me anything about Yasser's work experience, his projects,    │
 │       or DevOps skills! I'm here to help.                              │

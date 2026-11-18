@@ -152,12 +152,19 @@ No other text.`;
 
 // ---------- The flow ----------
 
-export const HIRE_INTRO =
-  "Great, let's talk! 🙌 I'll ask you 4 quick questions, and your answers go straight to my inbox. Answer however you like. Type /cancel to stop.";
+export const HIRE_INTRO = `Want to hire me? Great, let's talk! 🤝
+
+Send me your job offer in 4 quick steps:
+1. Your name
+2. Your email, so I can reply to you
+3. The company and the job
+4. Your message
+
+Answer in your own words. You'll see a preview before anything is sent, and then it goes straight to my inbox. Type /cancel to stop at any time.`;
 
 export const startHire = (): { state: HireState; reply: string } => ({
   state: { step: 'name', data: {} },
-  reply: `${HIRE_INTRO}\n\n${QUESTIONS.name({})}`,
+  reply: `${HIRE_INTRO}\n\nFirst, what's your name?`,
 });
 
 const preview = (data: Partial<HireData>) =>
